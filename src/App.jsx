@@ -74,10 +74,20 @@ const FIELD_TYPES = [
 // STORAGE
 // ═══════════════════════════════════════════════════════════════════════════════
 
+const APP_VERSION = "v1.0 · 27 abr 2026";
+
+const DEFAULT_DAY_TYPES = [
+  { id: "rutina",        label: "Rutina",         emoji: "🏠", color: "#4ECDC4" },
+  { id: "viaje_trabajo", label: "Viaje trabajo",   emoji: "✈️", color: "#FFD93D" },
+  { id: "viaje_ocio",    label: "Viaje ocio",      emoji: "🏖️", color: "#FF9F43" },
+  { id: "desconexion",   label: "Desconexión",     emoji: "🌿", color: "#A8E063" },
+  { id: "enfermedad",    label: "Enfermedad",      emoji: "🤒", color: "#FF6B6B" },
+];
+
 const SK = {
   kpis: "kpis-v3", habitos: "hab-v3",
   kpiGroups: "cfg-kpi-v2", habGroups: "cfg-hab-v2",
-  scriptUrl: "script-url-v1",
+  scriptUrl: "script-url-v1", dayTypes: "cfg-day-types-v1",
 };
 
 async function sGet(k) {
@@ -141,16 +151,15 @@ function toggleColors(field, value) {
 }
 
 // Sync config + data to Apps Script
-const PROXY_URL = "/api/sheets";
-
 async function syncToSheet(scriptUrl, payload) {
-  // scriptUrl se ignora — usamos siempre el proxy de Vercel
+  if (!scriptUrl) return;
   try {
-    await fetch(PROXY_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    // Usamos XMLHttpRequest síncrono para evitar el problema de redirects
+    // con fetch no-cors en Apps Script
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", scriptUrl, true);
+    xhr.setRequestHeader("Content-Type", "text/plain");
+    xhr.send(JSON.stringify(payload));
   } catch {}
 }
 
@@ -291,20 +300,41 @@ function ScoreRing({ pct, pending, rating }) {
 // HISTORY DOTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function HistoryDots({ kpiData, kpiGroups, selected, onSelect }) {
+function DayTypePicker({ value, onChange, dayTypes }) {
+  const selected = dayTypes.find(t => t.id === value);
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label style={S.lbl}>Tipo de día</label>
+      <div style={{ position: "relative" }}>
+        <select value={value||""} onChange={e => onChange(e.target.value||null)}
+          style={{ width:"100%", background:"#111", border:`1.5px solid ${selected?selected.color:"#252525"}`, borderRadius:10, color:selected?selected.color:"#444", fontSize:14, padding:"10px 14px", fontFamily:"var(--fb)", fontWeight:selected?600:400, outline:"none", appearance:"none", cursor:"pointer" }}>
+          <option value="">— Sin tipo —</option>
+          {dayTypes.map(t => <option key={t.id} value={t.id}>{t.emoji} {t.label}</option>)}
+        </select>
+        <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color:"#444", pointerEvents:"none", fontSize:12 }}>▾</span>
+      </div>
+    </div>
+  );
+}
+
+function HistoryDots({ kpiData, kpiGroups, dayTypes, selected, onSelect }) {
   const days = Array.from({length:7},(_,i) => {
     const d=new Date(); d.setDate(d.getDate()-(6-i)); return d.toISOString().split("T")[0];
   });
   return (
     <div style={{ display:"flex", gap:4, marginBottom:14 }}>
       {days.map(d => {
-        const vals = {...initDay(kpiGroups),...(kpiData[d]||{})};
-        const {pct} = scoreDay(vals, kpiGroups);
-        const color = pct>=80?"#A8E063":pct>=40?"#FFD93D":pct>0?"#4ECDC4":"#1e1e1e";
-        const isSel = d===selected;
+        const vals    = {...initDay(kpiGroups),...(kpiData[d]||{})};
+        const {pct}   = scoreDay(vals, kpiGroups);
+        const dayType = dayTypes.find(t => t.id === vals._day_type);
+        const color   = dayType ? dayType.color : pct>=80?"#A8E063":pct>=40?"#FFD93D":pct>0?"#4ECDC4":"#1e1e1e";
+        const isSel   = d===selected;
         return (
           <button key={d} onClick={() => onSelect(d)} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4, padding:"8px 4px", borderRadius:10, cursor:"pointer", background:isSel?"#1a1a1a":"transparent", border:`1.5px solid ${isSel?color:"transparent"}`, transition:"all .2s" }}>
-            <div style={{ width:8, height:8, borderRadius:"50%", background:color, boxShadow:pct>0?`0 0 8px ${color}`:"none" }}/>
+            {dayType
+              ? <span style={{ fontSize:12, lineHeight:1 }}>{dayType.emoji}</span>
+              : <div style={{ width:8, height:8, borderRadius:"50%", background:color, boxShadow:pct>0?`0 0 8px ${color}`:"none" }}/>
+            }
             <span style={{ fontSize:10, color:pct>0?color:"#222", fontFamily:"monospace", fontWeight:700 }}>{pct>0?`${pct}%`:"·"}</span>
             <span style={{ fontSize:9, color:"#333", textTransform:"capitalize" }}>{fmtDay(d)}</span>
           </button>
@@ -318,7 +348,7 @@ function HistoryDots({ kpiData, kpiGroups, selected, onSelect }) {
 // KPI TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl, setSyncStatus }) {
+function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl, dayTypes }) {
   const [date,    setDate]    = useState(today());
   const [openG,   setOpenG]   = useState(() => Object.fromEntries(kpiGroups.map(g=>[g.id,g.openByDefault])));
   const [saved,   setSaved]   = useState(false);
@@ -332,25 +362,20 @@ function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl, setSyncStatus }) {
     setKpiData(prev => ({...prev,[date]:{...(prev[date]||initDay(kpiGroups)),[fid]:val}}));
   };
 
+  const updateDayType = (val) => {
+    setSaved(false);
+    setKpiData(prev => ({...prev,[date]:{...(prev[date]||initDay(kpiGroups)),_day_type:val}}));
+  };
+
   const save = async () => {
-    if (syncing) return;
-    const ts = Date.now();
-    const rowWithTs = { date, ...dayVals, _ts: ts };
-    const next = {...kpiData,[date]:{ ...dayVals, _ts: ts }};
+    if (syncing) return; // evitar llamadas múltiples
+    const next = {...kpiData,[date]:dayVals};
     setKpiData(next); await sSet(SK.kpis, next);
     setSaved(true); setTimeout(()=>setSaved(false),2500);
-
-    if (!navigator.onLine) {
-      const q = await sGet("pending_queue") || [];
-      await sSet("pending_queue", [...q, { type:"kpis", rows:[rowWithTs] }]);
-      setSyncStatus("offline");
-      return;
-    }
-
-    setSyncing(true); setSyncStatus("syncing");
-    await syncToSheet(scriptUrl, { type:"kpis", rows:[rowWithTs] });
-    setSyncing(false); setSyncStatus("ok");
-    setTimeout(()=>setSyncStatus("idle"), 2000);
+    setSyncing(true);
+    // Solo enviar la fila del día actual — el script la busca por fecha y actualiza
+    await syncToSheet(scriptUrl, { type:"kpis", rows: [{ date, ...dayVals }] });
+    setSyncing(false);
   };
 
   const shift = n => {
@@ -369,13 +394,18 @@ function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl, setSyncStatus }) {
         <ScoreRing pct={pct} pending={pending} rating={dayVals.puntuacion}/>
       </div>
 
-      <HistoryDots kpiData={kpiData} kpiGroups={kpiGroups} selected={date} onSelect={setDate}/>
+      <HistoryDots kpiData={kpiData} kpiGroups={kpiGroups} dayTypes={dayTypes} selected={date} onSelect={setDate}/>
 
       <div style={{ display:"flex", gap:8, marginBottom:14, alignItems:"center" }}>
         <button onClick={()=>shift(-1)} style={S.arrow}>‹</button>
-        <input type="date" value={date} max={today()} onChange={e=>setDate(e.target.value)} style={S.dateIn}/>
+        <div style={{ flex:1, position:"relative" }}>
+          <input type="date" value={date} max={today()} onChange={e=>setDate(e.target.value)}
+            style={{ ...S.dateIn, width:"100%", textAlign:"center", color:"#E8E4DC", fontSize:14, fontWeight:600, padding:"10px 14px", cursor:"pointer" }}/>
+        </div>
         <button onClick={()=>shift(1)} style={{...S.arrow,opacity:date>=today()?.2:1}} disabled={date>=today()}>›</button>
       </div>
+
+      <DayTypePicker value={dayVals._day_type||null} onChange={updateDayType} dayTypes={dayTypes}/>
 
       <div style={{ display:"flex", gap:8, marginBottom:12 }}>
         <button onClick={()=>setOpenG(Object.fromEntries(kpiGroups.map(g=>[g.id,true])))}  style={S.microBtn}>↓ Todo</button>
@@ -528,10 +558,9 @@ function HabitosTab({ habitosData, setHabitosData, habGroups, scriptUrl }) {
   if (showForm||editing) return <HabitoForm initial={editing} habGroups={habGroups} onSave={save} onCancel={()=>{setShowForm(false);setEditing(null);}}/>;
 
   return (
-    <div>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+    <div style={{ paddingBottom: 70 }}>
+      <div style={{ marginBottom:16 }}>
         <p style={S.heading}>Actividades</p>
-        <button onClick={()=>setShowForm(true)} style={{...S.chip,background:"#C9B1FF18",color:"#C9B1FF",border:"1.5px solid #C9B1FF44",padding:"8px 16px"}}>+ Nueva</button>
       </div>
       <div style={{ display:"flex", gap:6, marginBottom:14, overflowX:"auto", paddingBottom:4 }}>
         <button onClick={()=>setFiltro(null)} style={{...S.chip,whiteSpace:"nowrap",background:!filtro?"#FFFFFF15":"transparent",border:`1.5px solid ${!filtro?"#666":"#222"}`,color:!filtro?"#ccc":"#444"}}>Todos</button>
@@ -548,6 +577,11 @@ function HabitosTab({ habitosData, setHabitosData, habGroups, scriptUrl }) {
           {filtered.map(h=>{const g=habGroups.find(x=>x.id===h.grupo);return <HabitoItem key={h.id} h={h} color={g?.color||"#888"} grupoLabel={`${g?.emoji||""} ${g?.label||h.grupo}`} onEdit={setEditing} onDelete={del}/>;} )}
         </div>
       }
+      {/* Botón fijo en la parte inferior */}
+      <button onClick={()=>setShowForm(true)}
+        style={{ position:"fixed", bottom:80, right:20, width:56, height:56, borderRadius:"50%", background:"#C9B1FF", border:"none", color:"#111", fontSize:28, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 20px rgba(201,177,255,0.4)", zIndex:50, display:"flex", alignItems:"center", justifyContent:"center" }}>
+        +
+      </button>
     </div>
   );
 }
@@ -768,7 +802,7 @@ function HabGroupEditor({ group, onUpdate, onDelete, onMoveUp, onMoveDown, isFir
 // CONFIG TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function ConfigTab({ kpiGroups, setKpiGroups, habGroups, setHabGroups, scriptUrl, setScriptUrl }) {
+function ConfigTab({ kpiGroups, setKpiGroups, habGroups, setHabGroups, scriptUrl, setScriptUrl, dayTypes, setDayTypes }) {
   const [section,setSection]=useState("kpi");
   const [url,setUrl]=useState(scriptUrl||"");
   const [urlSaved,setUrlSaved]=useState(false);
@@ -777,6 +811,7 @@ function ConfigTab({ kpiGroups, setKpiGroups, habGroups, setHabGroups, scriptUrl
 
   const saveKpi = async upd => { setKpiGroups(upd); await sSet(SK.kpiGroups,upd); await pushConfig(upd, habGroups); };
   const saveHab = async upd => { setHabGroups(upd); await sSet(SK.habGroups,upd); await pushConfig(kpiGroups, upd); };
+  const saveDT  = async upd => { setDayTypes(upd);  await sSet(SK.dayTypes, upd); };
 
   const pushConfig = async (kg, hg) => {
     await syncToSheet(scriptUrl, { type:"config", kpiGroups:kg, habGroups:hg });
@@ -795,7 +830,9 @@ function ConfigTab({ kpiGroups, setKpiGroups, habGroups, setHabGroups, scriptUrl
     setTimeout(()=>setSyncMsg(""),3000);
   };
 
-  const SECTIONS=[{id:"kpi",label:"KPIs"},{id:"hab",label:"Hábitos"},{id:"sheet",label:"Sheets"}];
+  const [newDT, setNewDT] = useState({label:"",emoji:"🏷️",color:"#C9B1FF"});
+
+  const SECTIONS=[{id:"kpi",label:"KPIs"},{id:"hab",label:"Hábitos"},{id:"tipos",label:"Tipos"},{id:"sheet",label:"Sheets"}];
 
   return (
     <div>
@@ -843,8 +880,54 @@ function ConfigTab({ kpiGroups, setKpiGroups, habGroups, setHabGroups, scriptUrl
         </div>
       )}
 
+      {section==="tipos" && (
+        <div>
+          <p style={{ fontSize:11, color:"#444", marginBottom:14, lineHeight:1.6 }}>
+            Tipos de día con su emoji y color en el historial semanal.
+          </p>
+          {dayTypes.map((t,i)=>(
+            <div key={t.id} style={{...S.card, marginBottom:8, padding:"10px 14px"}}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+                <span style={{ fontSize:20 }}>{t.emoji}</span>
+                <span style={{ flex:1, fontSize:13, color:t.color, fontWeight:600 }}>{t.label}</span>
+                <div style={{ width:18, height:18, borderRadius:"50%", background:t.color }}/>
+                <ConfirmBtn onConfirm={()=>saveDT(dayTypes.filter((_,xi)=>xi!==i))}/>
+              </div>
+              <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                <input value={t.emoji} maxLength={2} onChange={e=>saveDT(dayTypes.map((x,xi)=>xi===i?{...x,emoji:e.target.value}:x))}
+                  style={{...S.dateIn,width:50,textAlign:"center",fontSize:18,padding:"4px",flex:"none"}}/>
+                <input value={t.label} onChange={e=>saveDT(dayTypes.map((x,xi)=>xi===i?{...x,label:e.target.value}:x))}
+                  style={{...S.dateIn,flex:1}}/>
+              </div>
+              <ColorPicker value={t.color} onChange={c=>saveDT(dayTypes.map((x,xi)=>xi===i?{...x,color:c}:x))}/>
+            </div>
+          ))}
+          <div style={{...S.card, marginTop:8, padding:"12px 14px"}}>
+            <p style={{...S.lbl, marginBottom:8}}>Nuevo tipo de día</p>
+            <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+              <input value={newDT.emoji} maxLength={2} onChange={e=>setNewDT(p=>({...p,emoji:e.target.value}))}
+                style={{...S.dateIn,width:50,textAlign:"center",fontSize:18,padding:"4px",flex:"none"}}/>
+              <input value={newDT.label} onChange={e=>setNewDT(p=>({...p,label:e.target.value}))}
+                placeholder="Nombre..." style={{...S.dateIn,flex:1}}/>
+            </div>
+            <ColorPicker value={newDT.color} onChange={c=>setNewDT(p=>({...p,color:c}))}/>
+            <button onClick={()=>{
+              if(!newDT.label.trim()) return;
+              saveDT([...dayTypes,{id:uid(),label:newDT.label.trim(),emoji:newDT.emoji,color:newDT.color}]);
+              setNewDT({label:"",emoji:"🏷️",color:"#C9B1FF"});
+            }} style={{...S.chip,background:"#A8E06318",color:"#A8E063",border:"1px solid #A8E06344",marginTop:10}}>
+              + Añadir tipo
+            </button>
+          </div>
+        </div>
+      )}
+
       {section==="sheet" && (
         <div>
+          <div style={S.card}>
+            <p style={{ fontSize:13, fontWeight:700, color:"#ccc", margin:"0 0 6px", fontFamily:"var(--fd)" }}>🔖 Versión</p>
+            <p style={{ fontSize:13, color:"#A8E063", fontFamily:"monospace" }}>{APP_VERSION}</p>
+          </div>
           <div style={S.card}>
             <p style={{ fontSize:13, fontWeight:700, color:"#ccc", margin:"0 0 6px", fontFamily:"var(--fd)" }}>🔗 Google Sheets</p>
             <p style={{ fontSize:11, color:"#444", margin:"0 0 12px", lineHeight:1.6 }}>URL del Apps Script. Los datos y la configuración se sincronizan automáticamente.</p>
@@ -901,120 +984,22 @@ export default function App() {
   const [habitosData, setHabitosData] = useState([]);
   const [kpiGroups,   setKpiGroups]   = useState(DEFAULT_KPI_GROUPS);
   const [habGroups,   setHabGroups]   = useState(DEFAULT_HAB_GROUPS);
+  const [dayTypes,    setDayTypes]    = useState(DEFAULT_DAY_TYPES);
   const [scriptUrl,   setScriptUrl]   = useState("https://script.google.com/macros/s/AKfycbX776913ZhL5kJrJq1cdEY8FvrMG6SSXXWvApoRl-E5SmWKU1YHc13lOMrUN2GKo_/exec");
   const [loaded,      setLoaded]      = useState(false);
-  const [syncStatus,  setSyncStatus]  = useState("idle"); // idle | syncing | ok | offline | error
-
-  // ── Leer datos de Sheets al arrancar ────────────────────────────────────────
-  async function fetchFromSheets(url) {
-    try {
-      const res  = await fetch(PROXY_URL, { method: "GET" });
-      const data = await res.json();
-      if (data.status === "ok") return data;
-      return null;
-    } catch {
-      return null;
-    }
-  }
-
-  // ── Fusionar datos remotos con locales (remoto gana si más reciente) ────────
-  function mergeKpiData(local, remote) {
-    const merged = { ...local };
-    Object.entries(remote).forEach(([date, vals]) => {
-      if (!merged[date]) {
-        merged[date] = vals;
-      } else {
-        // El remoto tiene last_modified — si es más reciente, gana
-        const remoteTs = vals._ts || 0;
-        const localTs  = merged[date]._ts || 0;
-        if (remoteTs > localTs) merged[date] = vals;
-      }
-    });
-    return merged;
-  }
-
-  // ── Cola de pendientes — reintentar cuando vuelve conexión ─────────────────
-  async function flushPending(url) {
-    const pending = await sGet("pending_queue") || [];
-    if (pending.length === 0) return;
-    const failed = [];
-    for (const item of pending) {
-      try {
-        await fetch(url, { method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain"}, body:JSON.stringify(item) });
-      } catch {
-        failed.push(item);
-      }
-    }
-    await sSet("pending_queue", failed);
-  }
 
   useEffect(()=>{
     async function load(){
-      // 1. Cargar local primero — app responde inmediatamente
-      const [k,h,kg,hg,u] = await Promise.all([
-        sGet(SK.kpis), sGet(SK.habitos),
-        sGet(SK.kpiGroups), sGet(SK.habGroups), sGet(SK.scriptUrl)
-      ]);
-      if(k)  setKpiData(k);
-      if(h)  setHabitosData(h);
-      if(kg) setKpiGroups(kg);
-      if(hg) setHabGroups(hg);
-      const url = u || "https://script.google.com/macros/s/AKfycbX776913ZhL5kJrJq1cdEY8FvrMG6SSXXWvApoRl-E5SmWKU1YHc13lOMrUN2GKo_/exec";
-      if(u)  setScriptUrl(u);
+      const [k,h,kg,hg,u,dt]=await Promise.all([sGet(SK.kpis),sGet(SK.habitos),sGet(SK.kpiGroups),sGet(SK.habGroups),sGet(SK.scriptUrl),sGet(SK.dayTypes)]);
+      if(k)setKpiData(k); if(h)setHabitosData(h);
+      if(kg)setKpiGroups(kg); if(hg)setHabGroups(hg);
+      if(u)setScriptUrl(u); if(dt)setDayTypes(dt);
       setLoaded(true);
-
-      // 2. En background: leer de Sheets y fusionar
-      if (navigator.onLine) {
-        setSyncStatus("syncing");
-        await flushPending(url); // primero vaciar pendientes
-        const remote = await fetchFromSheets(url);
-        if (remote) {
-          if (remote.kpis) {
-            const merged = mergeKpiData(k || {}, remote.kpis);
-            setKpiData(merged);
-            await sSet(SK.kpis, merged);
-          }
-          if (remote.habitos) {
-            setHabitosData(remote.habitos);
-            await sSet(SK.habitos, remote.habitos);
-          }
-          setSyncStatus("ok");
-          setTimeout(()=>setSyncStatus("idle"), 3000);
-        } else {
-          setSyncStatus("error");
-          setTimeout(()=>setSyncStatus("idle"), 3000);
-        }
-      } else {
-        setSyncStatus("offline");
-      }
     }
     load();
-
-    // 3. Escuchar cuando vuelve la conexión
-    const handleOnline = () => {
-      flushPending(scriptUrl);
-      setSyncStatus("idle");
-    };
-    window.addEventListener("online", handleOnline);
-    return () => window.removeEventListener("online", handleOnline);
   },[]);
 
-  if(!loaded) return (
-    <div style={{minHeight:"100vh",background:"#0A0A0A",display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <div style={{textAlign:"center"}}>
-        <div style={{width:6,height:6,borderRadius:"50%",background:"#C9B1FF",margin:"0 auto 12px"}}/>
-        <p style={{fontSize:10,color:"#333",letterSpacing:".1em"}}>CARGANDO</p>
-      </div>
-    </div>
-  );
-
-  const syncIndicator = {
-    idle:    null,
-    syncing: { color:"#FFD93D", text:"Sincronizando..." },
-    ok:      { color:"#A8E063", text:"✓ Sincronizado con Sheets" },
-    offline: { color:"#FF9F43", text:"Sin conexión — datos locales" },
-    error:   { color:"#FF6B6B", text:"Sin conexión con Sheets" },
-  }[syncStatus];
+  if(!loaded) return <div style={{minHeight:"100vh",background:"#0A0A0A",display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{width:6,height:6,borderRadius:"50%",background:"#C9B1FF"}}/></div>;
 
   return (
     <>
@@ -1029,15 +1014,10 @@ export default function App() {
       `}</style>
       <div style={S.root}>
         <div style={S.glow1}/><div style={S.glow2}/>
-        {syncIndicator && (
-          <div style={{ position:"fixed", top:0, left:0, right:0, zIndex:200, background:syncIndicator.color+"22", borderBottom:`1px solid ${syncIndicator.color}44`, padding:"6px 16px", textAlign:"center" }}>
-            <span style={{ fontSize:11, color:syncIndicator.color, fontFamily:"monospace" }}>{syncIndicator.text}</span>
-          </div>
-        )}
-        <div style={{...S.content, paddingTop: syncIndicator ? 52 : 28}}>
-          {tab==="kpis"    && <KpiTab     kpiData={kpiData}         setKpiData={setKpiData}         kpiGroups={kpiGroups} scriptUrl={scriptUrl} setSyncStatus={setSyncStatus}/>}
-          {tab==="habitos" && <HabitosTab habitosData={habitosData} setHabitosData={setHabitosData} habGroups={habGroups} scriptUrl={scriptUrl} setSyncStatus={setSyncStatus}/>}
-          {tab==="cfg"     && <ConfigTab  kpiGroups={kpiGroups}     setKpiGroups={setKpiGroups}     habGroups={habGroups} setHabGroups={setHabGroups} scriptUrl={scriptUrl} setScriptUrl={setScriptUrl}/>}
+        <div style={S.content}>
+          {tab==="kpis"    && <KpiTab     kpiData={kpiData}         setKpiData={setKpiData}         kpiGroups={kpiGroups} scriptUrl={scriptUrl} dayTypes={dayTypes}/>}
+          {tab==="habitos" && <HabitosTab habitosData={habitosData} setHabitosData={setHabitosData} habGroups={habGroups} scriptUrl={scriptUrl}/>}
+          {tab==="cfg"     && <ConfigTab  kpiGroups={kpiGroups}     setKpiGroups={setKpiGroups}     habGroups={habGroups} setHabGroups={setHabGroups} scriptUrl={scriptUrl} setScriptUrl={setScriptUrl} dayTypes={dayTypes} setDayTypes={setDayTypes}/>}
         </div>
         <Nav tab={tab} setTab={setTab}/>
       </div>
