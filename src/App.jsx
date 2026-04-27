@@ -809,12 +809,12 @@ function ConfigTab({ kpiGroups, setKpiGroups, habGroups, setHabGroups, scriptUrl
   const [syncing,setSyncing]=useState(false);
   const [syncMsg,setSyncMsg]=useState("");
 
-  const saveKpi = async upd => { setKpiGroups(upd); await sSet(SK.kpiGroups,upd); await pushConfig(upd, habGroups); };
-  const saveHab = async upd => { setHabGroups(upd); await sSet(SK.habGroups,upd); await pushConfig(kpiGroups, upd); };
-  const saveDT  = async upd => { setDayTypes(upd);  await sSet(SK.dayTypes, upd); };
+  const saveKpi = async upd => { setKpiGroups(upd); await sSet(SK.kpiGroups,upd); await pushConfig(upd, habGroups, dayTypes); };
+  const saveHab = async upd => { setHabGroups(upd); await sSet(SK.habGroups,upd); await pushConfig(kpiGroups, upd, dayTypes); };
+  const saveDT  = async upd => { setDayTypes(upd);  await sSet(SK.dayTypes, upd); await pushConfig(kpiGroups, habGroups, upd); };
 
-  const pushConfig = async (kg, hg) => {
-    await syncToSheet(scriptUrl, { type:"config", kpiGroups:kg, habGroups:hg });
+  const pushConfig = async (kg, hg, dt) => {
+    await syncToSheet(scriptUrl, { type:"config", kpiGroups:kg, habGroups:hg, dayTypes:dt||dayTypes });
     await syncToSheet(scriptUrl, { type:"kpi_labels", groups:kg });
   };
 
@@ -825,7 +825,7 @@ function ConfigTab({ kpiGroups, setKpiGroups, habGroups, setHabGroups, scriptUrl
 
   const forceSyncConfig = async () => {
     setSyncing(true); setSyncMsg("");
-    await pushConfig(kpiGroups, habGroups);
+    await pushConfig(kpiGroups, habGroups, dayTypes);
     setSyncing(false); setSyncMsg("✓ Configuración enviada a Sheets");
     setTimeout(()=>setSyncMsg(""),3000);
   };
