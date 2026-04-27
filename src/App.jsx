@@ -987,14 +987,42 @@ export default function App() {
   const [dayTypes,    setDayTypes]    = useState(DEFAULT_DAY_TYPES);
   const [scriptUrl,   setScriptUrl]   = useState("https://script.google.com/macros/s/AKfycbx0X776913ZhL5kJrJq1cdEY8FvrMG6SSXXWvApoRl-E5SmWKU1YHc13lOMrUN2GKo_/exec");
   const [loaded,      setLoaded]      = useState(false);
+  const [syncStatus,  setSyncStatus]  = useState("idle");
 
   useEffect(()=>{
     async function load(){
+      // 1. Cargar local primero
       const [k,h,kg,hg,u,dt]=await Promise.all([sGet(SK.kpis),sGet(SK.habitos),sGet(SK.kpiGroups),sGet(SK.habGroups),sGet(SK.scriptUrl),sGet(SK.dayTypes)]);
       if(k)setKpiData(k); if(h)setHabitosData(h);
       if(kg)setKpiGroups(kg); if(hg)setHabGroups(hg);
       if(u)setScriptUrl(u); if(dt)setDayTypes(dt);
       setLoaded(true);
+
+      // 2. Leer de Sheets en background
+      try {
+        setSyncStatus("syncing");
+        const res  = await fetch("/api/sheets", { method:"GET" });
+        const data = await res.json();
+        if (data.status === "ok") {
+          if (data.kpis) {
+            const merged = { ...(k||{}), ...data.kpis };
+            setKpiData(merged);
+            await sSet(SK.kpis, merged);
+          }
+          if (data.habitos && data.habitos.length > 0) {
+            setHabitosData(data.habitos);
+            await sSet(SK.habitos, data.habitos);
+          }
+          setSyncStatus("ok");
+          setTimeout(()=>setSyncStatus("idle"), 2000);
+        } else {
+          setSyncStatus("error");
+          setTimeout(()=>setSyncStatus("idle"), 3000);
+        }
+      } catch {
+        setSyncStatus("error");
+        setTimeout(()=>setSyncStatus("idle"), 3000);
+      }
     }
     load();
   },[]);
@@ -1014,7 +1042,17 @@ export default function App() {
       `}</style>
       <div style={S.root}>
         <div style={S.glow1}/><div style={S.glow2}/>
-        <div style={S.content}>
+        {syncStatus!=="idle" && (
+          <div style={{ position:"fixed", top:0, left:0, right:0, zIndex:200, padding:"6px 16px", textAlign:"center",
+            background: syncStatus==="ok"?"#A8E06322":syncStatus==="error"?"#FF6B6B22":"#FFD93D22",
+            borderBottom: `1px solid ${syncStatus==="ok"?"#A8E06344":syncStatus==="error"?"#FF6B6B44":"#FFD93D44"}` }}>
+            <span style={{ fontSize:11, fontFamily:"monospace",
+              color: syncStatus==="ok"?"#A8E063":syncStatus==="error"?"#FF6B6B":"#FFD93D" }}>
+              {syncStatus==="ok"?"✓ Sincronizado":syncStatus==="error"?"Sin conexión con Sheets":"Sincronizando..."}
+            </span>
+          </div>
+        )}
+        <div style={{...S.content, paddingTop: syncStatus!=="idle"?48:28}}>
           {tab==="kpis"    && <KpiTab     kpiData={kpiData}         setKpiData={setKpiData}         kpiGroups={kpiGroups} scriptUrl={scriptUrl} dayTypes={dayTypes}/>}
           {tab==="habitos" && <HabitosTab habitosData={habitosData} setHabitosData={setHabitosData} habGroups={habGroups} scriptUrl={scriptUrl}/>}
           {tab==="cfg"     && <ConfigTab  kpiGroups={kpiGroups}     setKpiGroups={setKpiGroups}     habGroups={habGroups} setHabGroups={setHabGroups} scriptUrl={scriptUrl} setScriptUrl={setScriptUrl} dayTypes={dayTypes} setDayTypes={setDayTypes}/>}
