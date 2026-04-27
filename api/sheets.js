@@ -1,6 +1,6 @@
 // api/sheets.js — Vercel Serverless Function (lightweight)
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbX776913ZhL5kJrJq1cdEY8FvrMG6SSXXWvApoRl-E5SmWKU1YHc13lOMrUN2GKo_/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx0X776913ZhL5kJrJq1cdEY8FvrMG6SSXXWvApoRl-E5SmWKU1YHc13lOMrUN2GKo_/exec";
 
 export const config = {
   runtime: "edge", // Edge runtime — usa ~5MB en lugar de 254MB
