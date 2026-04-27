@@ -335,7 +335,7 @@ function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl }) {
     setKpiData(next); await sSet(SK.kpis, next);
     setSaved(true); setTimeout(()=>setSaved(false),2500);
     setSyncing(true);
-    await syncToSheet(scriptUrl, { type:"kpis", rows: Object.entries(next).map(([d,v])=>({date:d,...v})) });
+    await syncToSheet(scriptUrl, { type:"kpis", rows: [{ date, ...dayVals }] });
     setSyncing(false);
   };
 
