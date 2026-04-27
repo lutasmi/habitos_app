@@ -98,7 +98,7 @@ function doPost(e) {
 
     if (data.type === "kpis")       syncKpis(ss, data.rows);
     if (data.type === "habitos")    syncHabitos(ss, data.rows);
-    if (data.type === "config")     syncConfig(ss, data.kpiGroups, data.habGroups);
+    if (data.type === "config")     syncConfig(ss, data.kpiGroups, data.habGroups, data.dayTypes);
     if (data.type === "kpi_labels") updateKpiLabels(ss, data.groups);
 
     return ok();
@@ -353,7 +353,7 @@ function syncHabitos(ss, rows) {
 // CONFIGURACIÓN — volcado completo
 // ══════════════════════════════════════════════════════════════════════════════
 
-function syncConfig(ss, kpiGroups, habGroups) {
+function syncConfig(ss, kpiGroups, habGroups, dayTypes) {
   let sheet = ss.getSheetByName("Configuración");
   if (!sheet) {
     sheet = ss.insertSheet("Configuración");
@@ -434,6 +434,26 @@ function syncConfig(ss, kpiGroups, habGroups) {
         if (i === 0) sheet.getRange(row, 4).setBackground(g.color || "#FFFFFF");
         row++;
       }
+    });
+  }
+
+  // ── Tipos de día ──
+  if (dayTypes && Array.isArray(dayTypes) && dayTypes.length > 0) {
+    row++;
+    sheet.getRange(row, 1, 1, 4).merge().setValue("TIPOS DE DÍA");
+    sheet.getRange(row, 1).setFontWeight("bold").setBackground("#1A2A3A").setFontColor("#FFFFFF");
+    row++;
+
+    const dtHeaders = ["Tipo ID", "Tipo Label", "Emoji", "Color"];
+    sheet.getRange(row, 1, 1, dtHeaders.length).setValues([dtHeaders]);
+    sheet.getRange(row, 1, 1, dtHeaders.length).setFontWeight("bold").setBackground("#2A3A4A").setFontColor("#FFFFFF");
+    row++;
+
+    dayTypes.forEach(t => {
+      const rowData = [t.id||"", t.label||"", t.emoji||"", t.color||""];
+      sheet.getRange(row, 1, 1, dtHeaders.length).setValues([rowData]);
+      if (t.color) sheet.getRange(row, 4).setBackground(t.color);
+      row++;
     });
   }
 
