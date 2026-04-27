@@ -144,12 +144,12 @@ function toggleColors(field, value) {
 async function syncToSheet(scriptUrl, payload) {
   if (!scriptUrl) return;
   try {
-    // Usamos XMLHttpRequest síncrono para evitar el problema de redirects
-    // con fetch no-cors en Apps Script
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", scriptUrl, true);
-    xhr.setRequestHeader("Content-Type", "text/plain");
-    xhr.send(JSON.stringify(payload));
+    await fetch(scriptUrl, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify(payload),
+    });
   } catch {}
 }
 
