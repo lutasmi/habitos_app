@@ -144,11 +144,12 @@ function toggleColors(field, value) {
 async function syncToSheet(scriptUrl, payload) {
   if (!scriptUrl) return;
   try {
-    await fetch(scriptUrl, {
-      method: "POST", mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    // Usamos XMLHttpRequest síncrono para evitar el problema de redirects
+    // con fetch no-cors en Apps Script
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", scriptUrl, true);
+    xhr.setRequestHeader("Content-Type", "text/plain");
+    xhr.send(JSON.stringify(payload));
   } catch {}
 }
 
@@ -331,10 +332,12 @@ function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl }) {
   };
 
   const save = async () => {
+    if (syncing) return; // evitar llamadas múltiples
     const next = {...kpiData,[date]:dayVals};
     setKpiData(next); await sSet(SK.kpis, next);
     setSaved(true); setTimeout(()=>setSaved(false),2500);
     setSyncing(true);
+    // Solo enviar la fila del día actual — el script la busca por fecha y actualiza
     await syncToSheet(scriptUrl, { type:"kpis", rows: [{ date, ...dayVals }] });
     setSyncing(false);
   };
