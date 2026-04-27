@@ -985,7 +985,7 @@ export default function App() {
   const [kpiGroups,   setKpiGroups]   = useState(DEFAULT_KPI_GROUPS);
   const [habGroups,   setHabGroups]   = useState(DEFAULT_HAB_GROUPS);
   const [dayTypes,    setDayTypes]    = useState(DEFAULT_DAY_TYPES);
-  const [scriptUrl,   setScriptUrl]   = useState("https://script.google.com/macros/s/AKfycbX776913ZhL5kJrJq1cdEY8FvrMG6SSXXWvApoRl-E5SmWKU1YHc13lOMrUN2GKo_/exec");
+  const [scriptUrl,   setScriptUrl]   = useState("https://script.google.com/macros/s/AKfycbx0X776913ZhL5kJrJq1cdEY8FvrMG6SSXXWvApoRl-E5SmWKU1YHc13lOMrUN2GKo_/exec");
   const [loaded,      setLoaded]      = useState(false);
 
   useEffect(()=>{
