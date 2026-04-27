@@ -141,13 +141,14 @@ function toggleColors(field, value) {
 }
 
 // Sync config + data to Apps Script
+const PROXY_URL = "/api/sheets";
+
 async function syncToSheet(scriptUrl, payload) {
-  if (!scriptUrl) return;
+  // scriptUrl se ignora — usamos siempre el proxy de Vercel
   try {
-    await fetch(scriptUrl, {
+    await fetch(PROXY_URL, {
       method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
   } catch {}
@@ -907,9 +908,10 @@ export default function App() {
   // ── Leer datos de Sheets al arrancar ────────────────────────────────────────
   async function fetchFromSheets(url) {
     try {
-      const res  = await fetch(`${url}?action=read`, { method:"GET", mode:"cors" });
+      const res  = await fetch(PROXY_URL, { method: "GET" });
       const data = await res.json();
-      return data;
+      if (data.status === "ok") return data;
+      return null;
     } catch {
       return null;
     }
