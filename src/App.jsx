@@ -890,7 +890,7 @@ export default function App() {
   const [habitosData, setHabitosData] = useState([]);
   const [kpiGroups,   setKpiGroups]   = useState(DEFAULT_KPI_GROUPS);
   const [habGroups,   setHabGroups]   = useState(DEFAULT_HAB_GROUPS);
-  const [scriptUrl,   setScriptUrl]   = useState("");
+  const [scriptUrl,   setScriptUrl]   = useState("https://script.google.com/macros/s/AKfycbX776913ZhL5kJrJq1cdEY8FvrMG6SSXXWvApoRl-E5SmWKU1YHc13lOMrUN2GKo_/exec");
   const [loaded,      setLoaded]      = useState(false);
 
   useEffect(()=>{
