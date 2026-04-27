@@ -317,7 +317,7 @@ function HistoryDots({ kpiData, kpiGroups, selected, onSelect }) {
 // KPI TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl }) {
+function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl, setSyncStatus }) {
   const [date,    setDate]    = useState(today());
   const [openG,   setOpenG]   = useState(() => Object.fromEntries(kpiGroups.map(g=>[g.id,g.openByDefault])));
   const [saved,   setSaved]   = useState(false);
@@ -332,14 +332,24 @@ function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl }) {
   };
 
   const save = async () => {
-    if (syncing) return; // evitar llamadas múltiples
-    const next = {...kpiData,[date]:dayVals};
+    if (syncing) return;
+    const ts = Date.now();
+    const rowWithTs = { date, ...dayVals, _ts: ts };
+    const next = {...kpiData,[date]:{ ...dayVals, _ts: ts }};
     setKpiData(next); await sSet(SK.kpis, next);
     setSaved(true); setTimeout(()=>setSaved(false),2500);
-    setSyncing(true);
-    // Solo enviar la fila del día actual — el script la busca por fecha y actualiza
-    await syncToSheet(scriptUrl, { type:"kpis", rows: [{ date, ...dayVals }] });
-    setSyncing(false);
+
+    if (!navigator.onLine) {
+      const q = await sGet("pending_queue") || [];
+      await sSet("pending_queue", [...q, { type:"kpis", rows:[rowWithTs] }]);
+      setSyncStatus("offline");
+      return;
+    }
+
+    setSyncing(true); setSyncStatus("syncing");
+    await syncToSheet(scriptUrl, { type:"kpis", rows:[rowWithTs] });
+    setSyncing(false); setSyncStatus("ok");
+    setTimeout(()=>setSyncStatus("idle"), 2000);
   };
 
   const shift = n => {
@@ -892,19 +902,117 @@ export default function App() {
   const [habGroups,   setHabGroups]   = useState(DEFAULT_HAB_GROUPS);
   const [scriptUrl,   setScriptUrl]   = useState("https://script.google.com/macros/s/AKfycbX776913ZhL5kJrJq1cdEY8FvrMG6SSXXWvApoRl-E5SmWKU1YHc13lOMrUN2GKo_/exec");
   const [loaded,      setLoaded]      = useState(false);
+  const [syncStatus,  setSyncStatus]  = useState("idle"); // idle | syncing | ok | offline | error
+
+  // ── Leer datos de Sheets al arrancar ────────────────────────────────────────
+  async function fetchFromSheets(url) {
+    try {
+      const res  = await fetch(`${url}?action=read`, { method:"GET", mode:"cors" });
+      const data = await res.json();
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
+  // ── Fusionar datos remotos con locales (remoto gana si más reciente) ────────
+  function mergeKpiData(local, remote) {
+    const merged = { ...local };
+    Object.entries(remote).forEach(([date, vals]) => {
+      if (!merged[date]) {
+        merged[date] = vals;
+      } else {
+        // El remoto tiene last_modified — si es más reciente, gana
+        const remoteTs = vals._ts || 0;
+        const localTs  = merged[date]._ts || 0;
+        if (remoteTs > localTs) merged[date] = vals;
+      }
+    });
+    return merged;
+  }
+
+  // ── Cola de pendientes — reintentar cuando vuelve conexión ─────────────────
+  async function flushPending(url) {
+    const pending = await sGet("pending_queue") || [];
+    if (pending.length === 0) return;
+    const failed = [];
+    for (const item of pending) {
+      try {
+        await fetch(url, { method:"POST", mode:"no-cors", headers:{"Content-Type":"text/plain"}, body:JSON.stringify(item) });
+      } catch {
+        failed.push(item);
+      }
+    }
+    await sSet("pending_queue", failed);
+  }
 
   useEffect(()=>{
     async function load(){
-      const [k,h,kg,hg,u]=await Promise.all([sGet(SK.kpis),sGet(SK.habitos),sGet(SK.kpiGroups),sGet(SK.habGroups),sGet(SK.scriptUrl)]);
-      if(k)setKpiData(k); if(h)setHabitosData(h);
-      if(kg)setKpiGroups(kg); if(hg)setHabGroups(hg);
-      if(u)setScriptUrl(u);
+      // 1. Cargar local primero — app responde inmediatamente
+      const [k,h,kg,hg,u] = await Promise.all([
+        sGet(SK.kpis), sGet(SK.habitos),
+        sGet(SK.kpiGroups), sGet(SK.habGroups), sGet(SK.scriptUrl)
+      ]);
+      if(k)  setKpiData(k);
+      if(h)  setHabitosData(h);
+      if(kg) setKpiGroups(kg);
+      if(hg) setHabGroups(hg);
+      const url = u || "https://script.google.com/macros/s/AKfycbX776913ZhL5kJrJq1cdEY8FvrMG6SSXXWvApoRl-E5SmWKU1YHc13lOMrUN2GKo_/exec";
+      if(u)  setScriptUrl(u);
       setLoaded(true);
+
+      // 2. En background: leer de Sheets y fusionar
+      if (navigator.onLine) {
+        setSyncStatus("syncing");
+        await flushPending(url); // primero vaciar pendientes
+        const remote = await fetchFromSheets(url);
+        if (remote) {
+          if (remote.kpis) {
+            const merged = mergeKpiData(k || {}, remote.kpis);
+            setKpiData(merged);
+            await sSet(SK.kpis, merged);
+          }
+          if (remote.habitos) {
+            setHabitosData(remote.habitos);
+            await sSet(SK.habitos, remote.habitos);
+          }
+          setSyncStatus("ok");
+          setTimeout(()=>setSyncStatus("idle"), 3000);
+        } else {
+          setSyncStatus("error");
+          setTimeout(()=>setSyncStatus("idle"), 3000);
+        }
+      } else {
+        setSyncStatus("offline");
+      }
     }
     load();
+
+    // 3. Escuchar cuando vuelve la conexión
+    const handleOnline = () => {
+      flushPending(scriptUrl);
+      setSyncStatus("idle");
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
   },[]);
 
-  if(!loaded) return <div style={{minHeight:"100vh",background:"#0A0A0A",display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{width:6,height:6,borderRadius:"50%",background:"#C9B1FF"}}/></div>;
+  if(!loaded) return (
+    <div style={{minHeight:"100vh",background:"#0A0A0A",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{width:6,height:6,borderRadius:"50%",background:"#C9B1FF",margin:"0 auto 12px"}}/>
+        <p style={{fontSize:10,color:"#333",letterSpacing:".1em"}}>CARGANDO</p>
+      </div>
+    </div>
+  );
+
+  const syncIndicator = {
+    idle:    null,
+    syncing: { color:"#FFD93D", text:"Sincronizando..." },
+    ok:      { color:"#A8E063", text:"✓ Sincronizado con Sheets" },
+    offline: { color:"#FF9F43", text:"Sin conexión — datos locales" },
+    error:   { color:"#FF6B6B", text:"Sin conexión con Sheets" },
+  }[syncStatus];
 
   return (
     <>
@@ -919,9 +1027,14 @@ export default function App() {
       `}</style>
       <div style={S.root}>
         <div style={S.glow1}/><div style={S.glow2}/>
-        <div style={S.content}>
-          {tab==="kpis"    && <KpiTab     kpiData={kpiData}         setKpiData={setKpiData}         kpiGroups={kpiGroups} scriptUrl={scriptUrl}/>}
-          {tab==="habitos" && <HabitosTab habitosData={habitosData} setHabitosData={setHabitosData} habGroups={habGroups} scriptUrl={scriptUrl}/>}
+        {syncIndicator && (
+          <div style={{ position:"fixed", top:0, left:0, right:0, zIndex:200, background:syncIndicator.color+"22", borderBottom:`1px solid ${syncIndicator.color}44`, padding:"6px 16px", textAlign:"center" }}>
+            <span style={{ fontSize:11, color:syncIndicator.color, fontFamily:"monospace" }}>{syncIndicator.text}</span>
+          </div>
+        )}
+        <div style={{...S.content, paddingTop: syncIndicator ? 52 : 28}}>
+          {tab==="kpis"    && <KpiTab     kpiData={kpiData}         setKpiData={setKpiData}         kpiGroups={kpiGroups} scriptUrl={scriptUrl} setSyncStatus={setSyncStatus}/>}
+          {tab==="habitos" && <HabitosTab habitosData={habitosData} setHabitosData={setHabitosData} habGroups={habGroups} scriptUrl={scriptUrl} setSyncStatus={setSyncStatus}/>}
           {tab==="cfg"     && <ConfigTab  kpiGroups={kpiGroups}     setKpiGroups={setKpiGroups}     habGroups={habGroups} setHabGroups={setHabGroups} scriptUrl={scriptUrl} setScriptUrl={setScriptUrl}/>}
         </div>
         <Nav tab={tab} setTab={setTab}/>
