@@ -88,6 +88,7 @@ const SK = {
   kpis: "kpis-v3", habitos: "hab-v3",
   kpiGroups: "cfg-kpi-v2", habGroups: "cfg-hab-v2",
   scriptUrl: "script-url-v1", dayTypes: "cfg-day-types-v1",
+  defaultDayType: "cfg-default-day-type-v1",
 };
 
 async function sGet(k) {
@@ -348,13 +349,14 @@ function HistoryDots({ kpiData, kpiGroups, dayTypes, selected, onSelect }) {
 // KPI TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl, dayTypes }) {
+function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl, dayTypes, defaultDayType }) {
   const [date,    setDate]    = useState(today());
   const [openG,   setOpenG]   = useState(() => Object.fromEntries(kpiGroups.map(g=>[g.id,g.openByDefault])));
   const [saved,   setSaved]   = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   const dayVals = {...initDay(kpiGroups),...(kpiData[date]||{})};
+  if (!dayVals._day_type && defaultDayType) dayVals._day_type = defaultDayType;
   const {pct, pending} = scoreDay(dayVals, kpiGroups);
 
   const updateField = (fid, val) => {
@@ -607,20 +609,25 @@ function ConfirmBtn({ onConfirm, label="✕", confirmLabel="¿Borrar?", style: e
     : <button onClick={()=>{setConf(true);setTimeout(()=>setConf(false),3000);}} style={{...S.iconBtn,color:"#FF6B6B44",...extraStyle}}>{label}</button>;
 }
 
-function KpiFieldEditor({ field, onUpdate, onDelete, color }) {
+function KpiFieldEditor({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast, color }) {
   const [open,setOpen]=useState(false);
   const pos = field.positive !== false;
 
   return (
     <div style={{ background:"#0e0e0e", borderRadius:8, border:"1px solid #1a1a1a", marginBottom:6 }}>
-      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 10px" }}>
-        {/* polarity indicator */}
-        <span style={{ fontSize:12 }}>{pos?"✅":"⛔"}</span>
-        <span style={{ fontSize:10, padding:"2px 8px", borderRadius:20, background:color+"18", color, border:`1px solid ${color}33`, fontFamily:"monospace" }}>
-          {FIELD_TYPES.find(t=>t.id===field.type)?.label||field.type}
+      <div style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 10px" }}>
+        <div style={{ display:"flex", flexDirection:"column" }}>
+          {!isFirst && <button onClick={onMoveUp}   style={{...S.iconBtn,fontSize:14,padding:"2px 6px",minHeight:22}}>↑</button>}
+          {!isLast  && <button onClick={onMoveDown} style={{...S.iconBtn,fontSize:14,padding:"2px 6px",minHeight:22}}>↓</button>}
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <span style={{ fontSize:13, color:"#bbb", display:"block" }}>{field.label}</span>
+          <span style={{ fontSize:9, color:"#3a3a3a", fontFamily:"monospace" }}>{field.id}</span>
+        </div>
+        <span style={{ fontSize:10, padding:"2px 8px", borderRadius:20, background:color+"18", color, border:`1px solid ${color}33`, fontFamily:"monospace", flexShrink:0 }}>
+          {pos?"✅":"⛔"} {FIELD_TYPES.find(t=>t.id===field.type)?.label||field.type}
         </span>
-        <span style={{ flex:1, fontSize:13, color:"#bbb" }}>{field.label}</span>
-        <button onClick={()=>setOpen(p=>!p)} style={{...S.iconBtn,fontSize:12}}>✎</button>
+        <button onClick={()=>setOpen(p=>!p)} style={{...S.iconBtn,color:"#C9B1FF"}}>✎</button>
         <ConfirmBtn onConfirm={onDelete}/>
       </div>
       {open && (
@@ -638,10 +645,9 @@ function KpiFieldEditor({ field, onUpdate, onDelete, color }) {
             ))}
           </div>
 
-          {/* Positivo / Negativo — solo para toggle */}
           {field.type==="toggle" && (<>
             <label style={S.lbl}>Naturaleza</label>
-            <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+            <div style={{ display:"flex", gap:8, marginBottom:10, flexWrap:"wrap" }}>
               <button onClick={()=>onUpdate({...field,positive:true})}
                 style={{...S.chip,background:pos?"#A8E06320":"transparent",border:`1.5px solid ${pos?"#A8E063":"#222"}`,color:pos?"#A8E063":"#444"}}>
                 ✅ Positivo — ✓ es bueno
@@ -664,7 +670,6 @@ function KpiFieldEditor({ field, onUpdate, onDelete, color }) {
     </div>
   );
 }
-
 function KpiGroupEditor({ group, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast }) {
   const [open,setOpen]=useState(false);
   const [newFLbl,setNewFLbl]=useState("");
@@ -711,8 +716,11 @@ function KpiGroupEditor({ group, onUpdate, onDelete, onMoveUp, onMoveDown, isFir
             </button>
           </div>
           <label style={{...S.lbl,marginTop:14}}>Campos ({group.fields.length})</label>
-          {group.fields.map(f=>(
+          {group.fields.map((f,fi)=>(
             <KpiFieldEditor key={f.id} field={f} color={group.color}
+              isFirst={fi===0} isLast={fi===group.fields.length-1}
+              onMoveUp={()=>{const a=[...group.fields];[a[fi],a[fi-1]]=[a[fi-1],a[fi]];onUpdate({...group,fields:a});}}
+              onMoveDown={()=>{const a=[...group.fields];[a[fi],a[fi+1]]=[a[fi+1],a[fi]];onUpdate({...group,fields:a});}}
               onUpdate={upd=>onUpdate({...group,fields:group.fields.map(x=>x.id===f.id?upd:x)})}
               onDelete={()=>onUpdate({...group,fields:group.fields.filter(x=>x.id!==f.id)})}/>
           ))}
@@ -802,7 +810,7 @@ function HabGroupEditor({ group, onUpdate, onDelete, onMoveUp, onMoveDown, isFir
 // CONFIG TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function ConfigTab({ kpiGroups, setKpiGroups, habGroups, setHabGroups, scriptUrl, setScriptUrl, dayTypes, setDayTypes }) {
+function ConfigTab({ kpiGroups, setKpiGroups, habGroups, setHabGroups, scriptUrl, setScriptUrl, dayTypes, setDayTypes, defaultDayType, setDefaultDayType }) {
   const [section,setSection]=useState("kpi");
   const [url,setUrl]=useState(scriptUrl||"");
   const [urlSaved,setUrlSaved]=useState(false);
@@ -885,6 +893,23 @@ function ConfigTab({ kpiGroups, setKpiGroups, habGroups, setHabGroups, scriptUrl
           <p style={{ fontSize:11, color:"#444", marginBottom:14, lineHeight:1.6 }}>
             Tipos de día con su emoji y color en el historial semanal.
           </p>
+
+          {/* Tipo por defecto */}
+          <div style={{...S.card, marginBottom:16, padding:"12px 14px"}}>
+            <p style={{ fontSize:12, fontWeight:700, color:"#ccc", margin:"0 0 8px", fontFamily:"var(--fd)" }}>⭐ Tipo por defecto</p>
+            <p style={{ fontSize:11, color:"#444", margin:"0 0 10px" }}>Se aplica automáticamente a días sin tipo asignado.</p>
+            <div style={{ position:"relative" }}>
+              <select value={defaultDayType||""} onChange={async e=>{
+                const val=e.target.value||null;
+                setDefaultDayType(val);
+                await sSet(SK.defaultDayType,val);
+              }} style={{ width:"100%", background:"#111", border:"1.5px solid #333", borderRadius:10, color:"#E8E4DC", fontSize:14, padding:"10px 14px", fontFamily:"var(--fb)", outline:"none", appearance:"none", cursor:"pointer" }}>
+                <option value="">— Sin tipo por defecto —</option>
+                {dayTypes.map(t=><option key={t.id} value={t.id}>{t.emoji} {t.label}</option>)}
+              </select>
+              <span style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", color:"#444", pointerEvents:"none" }}>▾</span>
+            </div>
+          </div>
           {dayTypes.map((t,i)=>(
             <div key={t.id} style={{...S.card, marginBottom:8, padding:"10px 14px"}}>
               <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
@@ -985,6 +1010,7 @@ export default function App() {
   const [kpiGroups,   setKpiGroups]   = useState(DEFAULT_KPI_GROUPS);
   const [habGroups,   setHabGroups]   = useState(DEFAULT_HAB_GROUPS);
   const [dayTypes,    setDayTypes]    = useState(DEFAULT_DAY_TYPES);
+  const [defaultDayType, setDefaultDayType] = useState(null);
   const [scriptUrl,   setScriptUrl]   = useState("https://script.google.com/macros/s/AKfycbx0X776913ZhL5kJrJq1cdEY8FvrMG6SSXXWvApoRl-E5SmWKU1YHc13lOMrUN2GKo_/exec");
   const [loaded,      setLoaded]      = useState(false);
   const [syncStatus,  setSyncStatus]  = useState("idle");
@@ -992,10 +1018,11 @@ export default function App() {
   useEffect(()=>{
     async function load(){
       // 1. Cargar local primero
-      const [k,h,kg,hg,u,dt]=await Promise.all([sGet(SK.kpis),sGet(SK.habitos),sGet(SK.kpiGroups),sGet(SK.habGroups),sGet(SK.scriptUrl),sGet(SK.dayTypes)]);
+      const [k,h,kg,hg,u,dt,ddt]=await Promise.all([sGet(SK.kpis),sGet(SK.habitos),sGet(SK.kpiGroups),sGet(SK.habGroups),sGet(SK.scriptUrl),sGet(SK.dayTypes),sGet(SK.defaultDayType)]);
       if(k)setKpiData(k); if(h)setHabitosData(h);
       if(kg)setKpiGroups(kg); if(hg)setHabGroups(hg);
       if(u)setScriptUrl(u); if(dt)setDayTypes(dt);
+      if(ddt)setDefaultDayType(ddt);
       setLoaded(true);
 
       // 2. Leer de Sheets en background
@@ -1012,6 +1039,13 @@ export default function App() {
           if (data.habitos && data.habitos.length > 0) {
             setHabitosData(data.habitos);
             await sSet(SK.habitos, data.habitos);
+          }
+          // Restaurar configuración desde Sheets
+          if (data.config) {
+            const cfg = data.config;
+            if (cfg.kpiGroups) { setKpiGroups(cfg.kpiGroups); await sSet(SK.kpiGroups, cfg.kpiGroups); }
+            if (cfg.habGroups) { setHabGroups(cfg.habGroups); await sSet(SK.habGroups, cfg.habGroups); }
+            if (cfg.dayTypes)  { setDayTypes(cfg.dayTypes);   await sSet(SK.dayTypes,  cfg.dayTypes); }
           }
           setSyncStatus("ok");
           setTimeout(()=>setSyncStatus("idle"), 2000);
@@ -1053,9 +1087,9 @@ export default function App() {
           </div>
         )}
         <div style={{...S.content, paddingTop: syncStatus!=="idle"?48:28}}>
-          {tab==="kpis"    && <KpiTab     kpiData={kpiData}         setKpiData={setKpiData}         kpiGroups={kpiGroups} scriptUrl={scriptUrl} dayTypes={dayTypes}/>}
+          {tab==="kpis"    && <KpiTab     kpiData={kpiData}         setKpiData={setKpiData}         kpiGroups={kpiGroups} scriptUrl={scriptUrl} dayTypes={dayTypes} defaultDayType={defaultDayType}/>}
           {tab==="habitos" && <HabitosTab habitosData={habitosData} setHabitosData={setHabitosData} habGroups={habGroups} scriptUrl={scriptUrl}/>}
-          {tab==="cfg"     && <ConfigTab  kpiGroups={kpiGroups}     setKpiGroups={setKpiGroups}     habGroups={habGroups} setHabGroups={setHabGroups} scriptUrl={scriptUrl} setScriptUrl={setScriptUrl} dayTypes={dayTypes} setDayTypes={setDayTypes}/>}
+          {tab==="cfg"     && <ConfigTab  kpiGroups={kpiGroups}     setKpiGroups={setKpiGroups}     habGroups={habGroups} setHabGroups={setHabGroups} scriptUrl={scriptUrl} setScriptUrl={setScriptUrl} dayTypes={dayTypes} setDayTypes={setDayTypes} defaultDayType={defaultDayType} setDefaultDayType={setDefaultDayType}/>}
         </div>
         <Nav tab={tab} setTab={setTab}/>
       </div>
@@ -1088,7 +1122,7 @@ const S={
   saveBtn: {display:"block",width:"100%",border:"none",color:"#111",fontWeight:700,fontFamily:"var(--fd)",fontSize:15,padding:"15px",borderRadius:14,cursor:"pointer",transition:"background .3s"},
   formWrap:{background:"#111",borderRadius:16,border:"1px solid #1e1e1e",padding:18},
   habitCard:{background:"#111",border:"1px solid #191919",borderRadius:12,padding:"12px 14px"},
-  iconBtn: {background:"none",border:"none",color:"#333",cursor:"pointer",fontSize:14,padding:"3px 5px",transition:"color .2s"},
+  iconBtn: {background:"none",border:"none",color:"#555",cursor:"pointer",fontSize:18,padding:"6px 8px",transition:"color .2s",minWidth:36,minHeight:36,display:"flex",alignItems:"center",justifyContent:"center"},
   nav:     {position:"fixed",bottom:0,left:0,right:0,background:"rgba(10,10,10,0.97)",borderTop:"1px solid #191919",display:"flex",zIndex:100,padding:"8px 0 14px",backdropFilter:"blur(20px)"},
   navBtn:  {flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4,background:"none",border:"none",borderTop:"2px solid transparent",cursor:"pointer",padding:"6px 0",fontFamily:"var(--fb)",transition:"color .2s,border-color .2s"},
 };
