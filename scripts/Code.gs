@@ -24,8 +24,9 @@ function doGet(e) {
       const ss      = SpreadsheetApp.getActiveSpreadsheet();
       const kpis    = readKpis(ss);
       const habitos = readHabitos(ss);
+      const config  = readConfig(ss);
       return ContentService
-        .createTextOutput(JSON.stringify({ status:"ok", kpis, habitos }))
+        .createTextOutput(JSON.stringify({ status:"ok", kpis, habitos, config }))
         .setMimeType(ContentService.MimeType.JSON);
     } catch(err) {
       return ContentService
@@ -48,6 +49,11 @@ function readKpis(ss) {
   const ids     = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(String);
   const data    = sheet.getRange(3, 1, lastRow - 2, lastCol).getValues();
 
+  // Calcular fecha límite — últimos 90 días
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+  const cutoffStr = Utilities.formatDate(cutoff, Session.getScriptTimeZone(), "yyyy-MM-dd");
+
   const result = {};
   data.forEach(row => {
     const dateVal = row[0];
@@ -58,14 +64,14 @@ function readKpis(ss) {
     } else {
       dateStr = String(dateVal).trim();
     }
-    if (!dateStr) return;
+    if (!dateStr || dateStr < cutoffStr) return; // saltar días fuera de rango
     const obj = {};
     ids.forEach((id, i) => {
-      if (i === 0) return; // skip date column
+      if (i === 0) return;
       const val = row[i];
       if (val === "" || val === null) obj[id] = null;
       else if (val === 1) obj[id] = true;
-      else if (val === 0) obj[id] = null; // 0 = no marcado = null
+      else if (val === 0) obj[id] = null;
       else obj[id] = val;
     });
     result[dateStr] = obj;
@@ -73,7 +79,28 @@ function readKpis(ss) {
   return result;
 }
 
-function readHabitos(ss) {
+function readConfig(ss) {
+  // La configuración se guarda como JSON en una hoja oculta Config_Raw
+  try {
+    const sheet = ss.getSheetByName("Config_Raw");
+    if (!sheet) return null;
+    const val = sheet.getRange(1, 1).getValue();
+    if (!val) return null;
+    return JSON.parse(val);
+  } catch {
+    return null;
+  }
+}
+
+function writeConfigRaw(ss, kpiGroups, habGroups, dayTypes) {
+  let sheet = ss.getSheetByName("Config_Raw");
+  if (!sheet) {
+    sheet = ss.insertSheet("Config_Raw");
+    sheet.hideSheet(); // ocultar — es solo almacenamiento
+  }
+  const payload = JSON.stringify({ kpiGroups, habGroups, dayTypes, updatedAt: new Date().toISOString() });
+  sheet.getRange(1, 1).setValue(payload);
+}
   const sheet = ss.getSheetByName("Hábitos");
   if (!sheet || sheet.getLastRow() < 2) return [];
 
@@ -354,6 +381,9 @@ function syncHabitos(ss, rows) {
 // ══════════════════════════════════════════════════════════════════════════════
 
 function syncConfig(ss, kpiGroups, habGroups, dayTypes) {
+  // Guardar JSON raw para recuperación rápida al arrancar la app
+  writeConfigRaw(ss, kpiGroups, habGroups, dayTypes);
+
   let sheet = ss.getSheetByName("Configuración");
   if (!sheet) {
     sheet = ss.insertSheet("Configuración");
