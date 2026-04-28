@@ -386,121 +386,107 @@ function syncConfig(ss, kpiGroups, habGroups, dayTypes) {
   // Guardar JSON raw para recuperación rápida al arrancar la app
   writeConfigRaw(ss, kpiGroups, habGroups, dayTypes);
 
-  let sheet = ss.getSheetByName("Configuración");
-  if (!sheet) {
-    sheet = ss.insertSheet("Configuración");
-  }
-  sheet.clearContents();
-
   const now = new Date().toLocaleString("es-ES");
-  let row = 1;
 
-  // ── Cabecera ──
-  sheet.getRange(row, 1, 1, 4).merge().setValue("CONFIGURACIÓN DE LA APP — Actualizado: " + now);
-  sheet.getRange(row, 1).setFontWeight("bold").setBackground("#1C1C2E").setFontColor("#FFFFFF").setFontSize(11);
-  sheet.setRowHeight(row, 28);
-  row += 2;
+  // ── Hoja 1: Config_KPIs ──────────────────────────────────────────────────
+  let s1 = ss.getSheetByName("Config_KPIs");
+  if (!s1) s1 = ss.insertSheet("Config_KPIs");
+  s1.clearContents();
 
-  // ── KPI Groups ──
-  sheet.getRange(row, 1, 1, 6).merge().setValue("GRUPOS KPI");
-  sheet.getRange(row, 1).setFontWeight("bold").setBackground("#2E3A59").setFontColor("#FFFFFF");
-  row++;
+  s1.getRange(1,1,1,9).merge().setValue("KPIs — Actualizado: " + now);
+  s1.getRange(1,1).setFontWeight("bold").setBackground("#1C1C2E").setFontColor("#FFFFFF").setFontSize(11);
+  s1.setRowHeight(1, 28);
 
-  const kpiHeaders = ["Grupo ID", "Grupo Label", "Emoji", "Color", "Campo ID", "Campo Label", "Tipo", "Positivo", "Máximo"];
-  sheet.getRange(row, 1, 1, kpiHeaders.length).setValues([kpiHeaders]);
-  sheet.getRange(row, 1, 1, kpiHeaders.length).setFontWeight("bold").setBackground("#3A4A6A").setFontColor("#FFFFFF");
-  row++;
+  const kpiHeaders = ["Grupo ID","Grupo Label","Emoji","Color","Campo ID","Campo Label","Tipo","Positivo","Máximo"];
+  s1.getRange(2,1,1,kpiHeaders.length).setValues([kpiHeaders]);
+  s1.getRange(2,1,1,kpiHeaders.length).setFontWeight("bold").setBackground("#2E3A59").setFontColor("#FFFFFF");
 
+  let row = 3;
   if (kpiGroups && Array.isArray(kpiGroups)) {
     kpiGroups.forEach(g => {
-      if (!g.fields || g.fields.length === 0) {
-        sheet.getRange(row, 1, 1, kpiHeaders.length).setValues([[g.id, g.label, g.emoji, g.color, "—", "—", "—", "—", "—"]]);
-        sheet.getRange(row, 4).setBackground(g.color || "#FFFFFF");
+      const fields = g.fields && g.fields.length > 0 ? g.fields : [null];
+      fields.forEach((f, fi) => {
+        const rowData = [
+          fi===0 ? g.id    : "",
+          fi===0 ? g.label : "",
+          fi===0 ? g.emoji : "",
+          fi===0 ? g.color : "",
+          f ? f.id    : "—",
+          f ? f.label : "—",
+          f ? f.type  : "—",
+          f ? (f.positive!==false ? "Positivo ✅" : "Negativo ⛔") : "—",
+          f ? (f.max||"—") : "—",
+        ];
+        s1.getRange(row,1,1,kpiHeaders.length).setValues([rowData]);
+        if (fi===0) s1.getRange(row,4).setBackground(g.color||"#FFFFFF");
+        if (f) s1.getRange(row,8).setFontColor(f.positive!==false?"#2E7D32":"#C62828");
         row++;
-      } else {
-        g.fields.forEach((f, fi) => {
-          const rowData = [
-            fi === 0 ? g.id    : "",
-            fi === 0 ? g.label : "",
-            fi === 0 ? g.emoji : "",
-            fi === 0 ? g.color : "",
-            f.id,
-            f.label,
-            f.type,
-            f.positive !== false ? "Positivo ✅" : "Negativo ⛔",
-            f.max || "—",
-          ];
-          sheet.getRange(row, 1, 1, kpiHeaders.length).setValues([rowData]);
-          if (fi === 0) sheet.getRange(row, 4).setBackground(g.color || "#FFFFFF");
-          sheet.getRange(row, 8).setFontColor(f.positive !== false ? "#2E7D32" : "#C62828");
-          row++;
-        });
-      }
+      });
     });
   }
-  row++;
+  [130,160,60,80,130,180,90,110,70].forEach((w,i)=>s1.setColumnWidth(i+1,w));
+  s1.getRange(1,1,row,9).setFontSize(10).setVerticalAlignment("middle");
+  s1.setFrozenRows(2);
 
-  // ── Hábitos Groups ──
-  sheet.getRange(row, 1, 1, 4).merge().setValue("CATEGORÍAS DE HÁBITOS");
-  sheet.getRange(row, 1).setFontWeight("bold").setBackground("#2E4A2E").setFontColor("#FFFFFF");
-  row++;
+  // ── Hoja 2: Config_Habitos ───────────────────────────────────────────────
+  let s2 = ss.getSheetByName("Config_Habitos");
+  if (!s2) s2 = ss.insertSheet("Config_Habitos");
+  s2.clearContents();
 
-  const habHeaders = ["Categoría ID", "Categoría Label", "Emoji", "Color", "Actividad"];
-  sheet.getRange(row, 1, 1, habHeaders.length).setValues([habHeaders]);
-  sheet.getRange(row, 1, 1, habHeaders.length).setFontWeight("bold").setBackground("#3A5A3A").setFontColor("#FFFFFF");
-  row++;
+  s2.getRange(1,1,1,5).merge().setValue("HÁBITOS — Actualizado: " + now);
+  s2.getRange(1,1).setFontWeight("bold").setBackground("#1C2E1C").setFontColor("#FFFFFF").setFontSize(11);
+  s2.setRowHeight(1,28);
 
+  const habHeaders = ["Categoría ID","Categoría Label","Emoji","Color","Actividad"];
+  s2.getRange(2,1,1,habHeaders.length).setValues([habHeaders]);
+  s2.getRange(2,1,1,habHeaders.length).setFontWeight("bold").setBackground("#2E4A2E").setFontColor("#FFFFFF");
+
+  row = 3;
   if (habGroups && Array.isArray(habGroups)) {
     habGroups.forEach(g => {
-      const habList = g.habitos || [];
-      const maxRows = Math.max(habList.length, 1);
-      for (let i = 0; i < maxRows; i++) {
+      const habList = g.habitos||[];
+      const maxRows = Math.max(habList.length,1);
+      for (let i=0; i<maxRows; i++) {
         const rowData = [
-          i === 0 ? g.id    : "",
-          i === 0 ? g.label : "",
-          i === 0 ? g.emoji : "",
-          i === 0 ? g.color : "",
-          habList[i] || "—",
+          i===0?g.id:"", i===0?g.label:"", i===0?g.emoji:"", i===0?g.color:"",
+          habList[i]||"—",
         ];
-        sheet.getRange(row, 1, 1, habHeaders.length).setValues([rowData]);
-        if (i === 0) sheet.getRange(row, 4).setBackground(g.color || "#FFFFFF");
+        s2.getRange(row,1,1,habHeaders.length).setValues([rowData]);
+        if (i===0) s2.getRange(row,4).setBackground(g.color||"#FFFFFF");
         row++;
       }
     });
   }
+  [130,160,60,80,200].forEach((w,i)=>s2.setColumnWidth(i+1,w));
+  s2.getRange(1,1,row,5).setFontSize(10).setVerticalAlignment("middle");
+  s2.setFrozenRows(2);
 
-  // ── Tipos de día ──
-  if (dayTypes && Array.isArray(dayTypes) && dayTypes.length > 0) {
-    row++;
-    sheet.getRange(row, 1, 1, 4).merge().setValue("TIPOS DE DÍA");
-    sheet.getRange(row, 1).setFontWeight("bold").setBackground("#1A2A3A").setFontColor("#FFFFFF");
-    row++;
+  // ── Hoja 3: Config_Tipos ─────────────────────────────────────────────────
+  let s3 = ss.getSheetByName("Config_Tipos");
+  if (!s3) s3 = ss.insertSheet("Config_Tipos");
+  s3.clearContents();
 
-    const dtHeaders = ["Tipo ID", "Tipo Label", "Emoji", "Color"];
-    sheet.getRange(row, 1, 1, dtHeaders.length).setValues([dtHeaders]);
-    sheet.getRange(row, 1, 1, dtHeaders.length).setFontWeight("bold").setBackground("#2A3A4A").setFontColor("#FFFFFF");
-    row++;
+  s3.getRange(1,1,1,4).merge().setValue("TIPOS DE DÍA — Actualizado: " + now);
+  s3.getRange(1,1).setFontWeight("bold").setBackground("#1A2A3A").setFontColor("#FFFFFF").setFontSize(11);
+  s3.setRowHeight(1,28);
 
+  const dtHeaders = ["Tipo ID","Tipo Label","Emoji","Color"];
+  s3.getRange(2,1,1,dtHeaders.length).setValues([dtHeaders]);
+  s3.getRange(2,1,1,dtHeaders.length).setFontWeight("bold").setBackground("#2A3A4A").setFontColor("#FFFFFF");
+
+  row = 3;
+  if (dayTypes && Array.isArray(dayTypes)) {
     dayTypes.forEach(t => {
-      const rowData = [t.id||"", t.label||"", t.emoji||"", t.color||""];
-      sheet.getRange(row, 1, 1, dtHeaders.length).setValues([rowData]);
-      if (t.color) sheet.getRange(row, 4).setBackground(t.color);
+      s3.getRange(row,1,1,4).setValues([[t.id||"",t.label||"",t.emoji||"",t.color||""]]);
+      if (t.color) s3.getRange(row,4).setBackground(t.color);
       row++;
     });
   }
+  [130,160,60,80].forEach((w,i)=>s3.setColumnWidth(i+1,w));
+  s3.getRange(1,1,row,4).setFontSize(10).setVerticalAlignment("middle");
+  s3.setFrozenRows(2);
 
-  // Formateo general
-  sheet.setColumnWidth(1, 130);
-  sheet.setColumnWidth(2, 160);
-  sheet.setColumnWidth(3, 60);
-  sheet.setColumnWidth(4, 80);
-  sheet.setColumnWidth(5, 130);
-  sheet.setColumnWidth(6, 180);
-  sheet.setColumnWidth(7, 90);
-  sheet.setColumnWidth(8, 110);
-  sheet.setColumnWidth(9, 70);
-
-  // Alternar filas de datos
-  // (ya coloreadas por grupo, solo ajustamos fuente)
-  sheet.getRange(1, 1, row, 9).setFontSize(10).setVerticalAlignment("middle");
+  // Eliminar la hoja antigua "Configuración" si existe
+  const oldSheet = ss.getSheetByName("Configuración");
+  if (oldSheet) ss.deleteSheet(oldSheet);
 }
