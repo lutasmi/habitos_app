@@ -364,7 +364,11 @@ function HistoryDots({ kpiData, kpiGroups, dayTypes, selected, onSelect }) {
 
 function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl, dayTypes, defaultDayType }) {
   const [date,    setDate]    = useState(today());
-  const [openG,   setOpenG]   = useState(() => Object.fromEntries(kpiGroups.map(g=>[g.id,g.openByDefault])));
+  const [openG, setOpenG] = useState(() => Object.fromEntries(kpiGroups.map(g=>[g.id,g.openByDefault])));
+
+  useEffect(() => {
+    setOpenG(Object.fromEntries(kpiGroups.map(g=>[g.id,g.openByDefault])));
+  }, [kpiGroups.map(g=>g.id).join(",")]);
   const [saved,   setSaved]   = useState(false);
   const [syncing, setSyncing] = useState(false);
 
