@@ -107,8 +107,8 @@ function readHabitos(ss) {
   if (!sheet || sheet.getLastRow() < 2) return [];
 
   const lastRow = sheet.getLastRow();
-  const data    = sheet.getRange(2, 1, lastRow - 1, 8).getValues();
-  const fields  = ["id","date","grupo","habito","comentario","veces","duracion","distancia"];
+  const data    = sheet.getRange(2, 1, lastRow - 1, 9).getValues();
+  const fields  = ["id","date","grupo","habito_id","habito_label","comentario","veces","duracion","distancia"];
 
   return data
     .filter(row => row[0]) // filtrar filas vacías
@@ -332,8 +332,8 @@ function applyKpiFormatting(sheet) {
 // HÁBITOS
 // ══════════════════════════════════════════════════════════════════════════════
 
-const HAB_HEADERS = ["ID", "Fecha", "Categoría", "Actividad", "Comentario", "Veces", "Duración (min)", "Distancia (km)"];
-const HAB_FIELDS  = ["id", "date", "grupo", "habito", "comentario", "veces", "duracion", "distancia"];
+const HAB_HEADERS = ["ID", "Fecha", "Categoría ID", "Actividad ID", "Actividad", "Comentario", "Veces", "Duración (min)", "Distancia (km)"];
+const HAB_FIELDS  = ["id", "date", "grupo", "habito_id", "habito_label", "comentario", "veces", "duracion", "distancia"];
 
 function syncHabitos(ss, rows) {
   let sheet = ss.getSheetByName("Hábitos");
@@ -437,19 +437,19 @@ function syncConfig(ss, kpiGroups, habGroups, dayTypes) {
   s2.getRange(1,1).setFontWeight("bold").setBackground("#1C2E1C").setFontColor("#FFFFFF").setFontSize(11);
   s2.setRowHeight(1,28);
 
-  const habHeaders = ["Categoría ID","Categoría Label","Emoji","Color","Actividad"];
+  const habHeaders = ["Categoría ID","Categoría Label","Emoji","Color","Actividad ID","Actividad Label"];
   s2.getRange(2,1,1,habHeaders.length).setValues([habHeaders]);
   s2.getRange(2,1,1,habHeaders.length).setFontWeight("bold").setBackground("#2E4A2E").setFontColor("#FFFFFF");
 
   row = 3;
   if (habGroups && Array.isArray(habGroups)) {
     habGroups.forEach(g => {
-      const habList = g.habitos||[];
+      const habList = (g.habitos||[]).map(h=>typeof h==="string"?{id:h,label:h}:h);
       const maxRows = Math.max(habList.length,1);
       for (let i=0; i<maxRows; i++) {
         const rowData = [
           i===0?g.id:"", i===0?g.label:"", i===0?g.emoji:"", i===0?g.color:"",
-          habList[i]||"—",
+          habList[i]?.id||"—", habList[i]?.label||"—",
         ];
         s2.getRange(row,1,1,habHeaders.length).setValues([rowData]);
         if (i===0) s2.getRange(row,4).setBackground(g.color||"#FFFFFF");
@@ -457,7 +457,7 @@ function syncConfig(ss, kpiGroups, habGroups, dayTypes) {
       }
     });
   }
-  [130,160,60,80,200].forEach((w,i)=>s2.setColumnWidth(i+1,w));
+  [130,160,60,80,160,200].forEach((w,i)=>s2.setColumnWidth(i+1,w));
   s2.getRange(1,1,row,5).setFontSize(10).setVerticalAlignment("middle");
   s2.setFrozenRows(2);
 
