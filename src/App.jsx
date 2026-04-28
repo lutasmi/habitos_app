@@ -1032,11 +1032,17 @@ export default function App() {
         const data = await res.json();
         if (data.status === "ok") {
           if (data.kpis) {
-            const merged = { ...(k||{}), ...data.kpis };
+            // Sheets gana siempre — es la fuente de verdad
+            // Solo conservamos del local los días que no existen en Sheets
+            const localOnly = Object.fromEntries(
+              Object.entries(k||{}).filter(([date]) => !data.kpis[date])
+            );
+            const merged = { ...localOnly, ...data.kpis };
             setKpiData(merged);
             await sSet(SK.kpis, merged);
           }
-          if (data.habitos && data.habitos.length > 0) {
+          if (data.habitos) {
+            // Sheets gana siempre para hábitos
             setHabitosData(data.habitos);
             await sSet(SK.habitos, data.habitos);
           }
