@@ -609,9 +609,10 @@ function ConfirmBtn({ onConfirm, label="✕", confirmLabel="¿Borrar?", style: e
     : <button onClick={()=>{setConf(true);setTimeout(()=>setConf(false),3000);}} style={{...S.iconBtn,color:"#FF6B6B44",...extraStyle}}>{label}</button>;
 }
 
-function KpiFieldEditor({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast, color }) {
+function KpiFieldEditor({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast, color, onMoveToGroup, kpiGroups, currentGroupId }) {
   const [open,setOpen]=useState(false);
   const pos = field.positive !== false;
+  const otherGroups = (kpiGroups||[]).filter(g=>g.id!==currentGroupId);
 
   return (
     <div style={{ background:"#0e0e0e", borderRadius:8, border:"1px solid #1a1a1a", marginBottom:6 }}>
@@ -665,21 +666,42 @@ function KpiFieldEditor({ field, onUpdate, onDelete, onMoveUp, onMoveDown, isFir
               onChange={e=>onUpdate({...field,max:parseInt(e.target.value)})}
               style={{...S.numIn,width:80}}/>
           </>)}
+
+          {otherGroups.length>0 && (<>
+            <label style={{...S.lbl,marginTop:12}}>Mover a otro grupo</label>
+            <div style={{ position:"relative" }}>
+              <select defaultValue="" onChange={e=>{ if(e.target.value) onMoveToGroup(e.target.value); }}
+                style={{ width:"100%", background:"#111", border:"1.5px solid #333", borderRadius:8, color:"#888", fontSize:13, padding:"8px 12px", fontFamily:"var(--fb)", outline:"none", appearance:"none", cursor:"pointer" }}>
+                <option value="">— Seleccionar grupo —</option>
+                {otherGroups.map(g=><option key={g.id} value={g.id}>{g.emoji} {g.label}</option>)}
+              </select>
+              <span style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#444", pointerEvents:"none" }}>▾</span>
+            </div>
+          </>)}
         </div>
       )}
     </div>
   );
 }
-function KpiGroupEditor({ group, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast }) {
+function KpiGroupEditor({ group, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast, kpiGroups, onMoveField }) {
   const [open,setOpen]=useState(false);
   const [newFLbl,setNewFLbl]=useState("");
   const [newFTyp,setNewFTyp]=useState("toggle");
+  const [newFId, setNewFId] =useState("");
 
   const addField = () => {
     if (!newFLbl.trim()) return;
-    const f={id:uid(),label:newFLbl.trim(),type:newFTyp,positive:true,...(newFTyp==="counter"?{max:5}:{}),...(newFTyp==="rating"?{max:10}:{})};
+    const autoId = newFLbl.trim().toLowerCase().replace(/[^a-z0-9]/g,"_").replace(/__+/g,"_");
+    const finalId = newFId.trim() || autoId;
+    // Verificar que el ID no existe ya en ningún grupo
+    const allIds = kpiGroups.flatMap(g=>g.fields.map(f=>f.id));
+    if (allIds.includes(finalId)) {
+      alert(`El ID "${finalId}" ya existe. Elige otro.`);
+      return;
+    }
+    const f={id:finalId,label:newFLbl.trim(),type:newFTyp,positive:true,...(newFTyp==="counter"?{max:5}:{}),...(newFTyp==="rating"?{max:10}:{})};
     onUpdate({...group,fields:[...group.fields,f]});
-    setNewFLbl(""); setNewFTyp("toggle");
+    setNewFLbl(""); setNewFTyp("toggle"); setNewFId("");
   };
 
   return (
@@ -722,18 +744,35 @@ function KpiGroupEditor({ group, onUpdate, onDelete, onMoveUp, onMoveDown, isFir
               onMoveUp={()=>{const a=[...group.fields];[a[fi],a[fi-1]]=[a[fi-1],a[fi]];onUpdate({...group,fields:a});}}
               onMoveDown={()=>{const a=[...group.fields];[a[fi],a[fi+1]]=[a[fi+1],a[fi]];onUpdate({...group,fields:a});}}
               onUpdate={upd=>onUpdate({...group,fields:group.fields.map(x=>x.id===f.id?upd:x)})}
-              onDelete={()=>onUpdate({...group,fields:group.fields.filter(x=>x.id!==f.id)})}/>
+              onDelete={()=>onUpdate({...group,fields:group.fields.filter(x=>x.id!==f.id)})}
+              onMoveToGroup={targetGroupId=>onMoveField(group.id, f.id, targetGroupId)}
+              kpiGroups={kpiGroups}
+              currentGroupId={group.id}/>
           ))}
-          <div style={{ display:"flex", gap:6, marginTop:8, flexWrap:"wrap" }}>
-            <input value={newFLbl} onChange={e=>setNewFLbl(e.target.value)} placeholder="Nombre del campo..."
-              onKeyDown={e=>e.key==="Enter"&&addField()} style={{...S.dateIn,flex:1,minWidth:120}}/>
-            {FIELD_TYPES.map(t=>(
-              <button key={t.id} onClick={()=>setNewFTyp(t.id)}
-                style={{...S.chip,fontSize:10,background:newFTyp===t.id?group.color+"20":"transparent",border:`1.5px solid ${newFTyp===t.id?group.color:"#222"}`,color:newFTyp===t.id?group.color:"#444"}}>
-                {t.label}
-              </button>
-            ))}
-            <button onClick={addField} style={{...S.chip,background:"#A8E06318",color:"#A8E063",border:"1px solid #A8E06344"}}>+ Añadir</button>
+          {/* Nuevo campo */}
+          <div style={{ background:"#0a0a0a", borderRadius:8, border:"1px dashed #222", padding:"10px 10px", marginTop:8 }}>
+            <label style={S.lbl}>Nuevo campo</label>
+            <div style={{ display:"flex", gap:6, marginBottom:6, flexWrap:"wrap" }}>
+              <input value={newFLbl} onChange={e=>{
+                setNewFLbl(e.target.value);
+                if (!newFId) setNewFId(e.target.value.toLowerCase().replace(/[^a-z0-9]/g,"_").replace(/__+/g,"_"));
+              }} placeholder="Nombre del campo..."
+                onKeyDown={e=>e.key==="Enter"&&addField()} style={{...S.dateIn,flex:1,minWidth:120}}/>
+            </div>
+            <div style={{ display:"flex", gap:6, marginBottom:6, alignItems:"center" }}>
+              <span style={{ fontSize:10, color:"#444", fontFamily:"monospace", whiteSpace:"nowrap" }}>ID:</span>
+              <input value={newFId} onChange={e=>setNewFId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))}
+                placeholder="id_tecnico" style={{...S.dateIn,flex:1,fontFamily:"monospace",fontSize:11,color:"#FFD93D"}}/>
+            </div>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              {FIELD_TYPES.map(t=>(
+                <button key={t.id} onClick={()=>setNewFTyp(t.id)}
+                  style={{...S.chip,fontSize:10,background:newFTyp===t.id?group.color+"20":"transparent",border:`1.5px solid ${newFTyp===t.id?group.color:"#222"}`,color:newFTyp===t.id?group.color:"#444"}}>
+                  {t.label}
+                </button>
+              ))}
+              <button onClick={addField} style={{...S.chip,background:"#A8E06318",color:"#A8E063",border:"1px solid #A8E06344"}}>+ Añadir</button>
+            </div>
           </div>
         </div>
       )}
@@ -862,9 +901,20 @@ function ConfigTab({ kpiGroups, setKpiGroups, habGroups, setHabGroups, scriptUrl
           </p>
           {kpiGroups.map((g,i)=>(
             <KpiGroupEditor key={g.id} group={g} isFirst={i===0} isLast={i===kpiGroups.length-1}
+              kpiGroups={kpiGroups}
               onUpdate={upd=>saveKpi(kpiGroups.map((x,xi)=>xi===i?upd:x))}
               onDelete={()=>saveKpi(kpiGroups.filter((_,xi)=>xi!==i))}
-              onMoveUp={()=>moveKpi(i,-1)} onMoveDown={()=>moveKpi(i,1)}/>
+              onMoveUp={()=>moveKpi(i,-1)} onMoveDown={()=>moveKpi(i,1)}
+              onMoveField={(fromGroupId, fieldId, toGroupId)=>{
+                const field = kpiGroups.find(g=>g.id===fromGroupId)?.fields.find(f=>f.id===fieldId);
+                if (!field) return;
+                const updated = kpiGroups.map(g=>{
+                  if (g.id===fromGroupId) return {...g, fields:g.fields.filter(f=>f.id!==fieldId)};
+                  if (g.id===toGroupId)   return {...g, fields:[...g.fields, field]};
+                  return g;
+                });
+                saveKpi(updated);
+              }}/>
           ))}
           <button onClick={()=>saveKpi([...kpiGroups,{id:uid(),label:"Nuevo grupo",emoji:"⭐",color:"#C9B1FF",openByDefault:false,fields:[]}])}
             style={{...S.saveBtn,background:"transparent",border:"1px dashed #333",color:"#444",marginTop:4}}>
