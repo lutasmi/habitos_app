@@ -101,6 +101,8 @@ function writeConfigRaw(ss, kpiGroups, habGroups, dayTypes) {
   const payload = JSON.stringify({ kpiGroups, habGroups, dayTypes, updatedAt: new Date().toISOString() });
   sheet.getRange(1, 1).setValue(payload);
 }
+
+function readHabitos(ss) {
   const sheet = ss.getSheetByName("Hábitos");
   if (!sheet || sheet.getLastRow() < 2) return [];
 
