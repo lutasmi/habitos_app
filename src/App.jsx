@@ -47,14 +47,27 @@ const DEFAULT_KPI_GROUPS = [
 ];
 
 const DEFAULT_HAB_GROUPS = [
-  { id: "deporte",      label: "Deporte",               emoji: "⚽", color: "#4ECDC4", habitos: ["Entreno Cardio","Entreno Fuerza","Estirar","Pádel","Golf","Nadar","Caminata"] },
-  { id: "alimentacion", label: "Alimentación",           emoji: "🍽️", color: "#A8E063", habitos: ["Cocinar","Meal prep","Sin ultraprocesados"] },
-  { id: "desarrollo_p", label: "Desarrollo Personal",    emoji: "📚", color: "#C9B1FF", habitos: ["Lectura","Meditación","Journaling"] },
-  { id: "desarrollo_f", label: "Desarrollo Profesional", emoji: "🚀", color: "#FFD93D", habitos: ["Exposición profesional","Networking","Formación","Deep work"] },
-  { id: "familia",      label: "Familia & Amigos",       emoji: "❤️", color: "#FF6B6B", habitos: ["Llamar","Quedar","Mensaje especial","Chiamare amici"] },
-  { id: "financieros",  label: "Financieros",            emoji: "💰", color: "#FF9F43", habitos: ["Revisar inversiones","Ahorro activo"] },
-  { id: "ocio",         label: "Ocio & Cultura",         emoji: "🎭", color: "#4A9EFF", habitos: ["Películas","Teatro","Música","Escapadas"] },
-  { id: "side",         label: "Side Projects",          emoji: "⚡", color: "#E8D5A3", habitos: ["Sesión de proyecto"] },
+  { id: "deporte",      label: "Deporte",               emoji: "⚽", color: "#4ECDC4", habitos: [
+    {id:"entreno_cardio",label:"Entreno Cardio"},{id:"entreno_fuerza",label:"Entreno Fuerza"},
+    {id:"estirar",label:"Estirar"},{id:"padel",label:"Pádel"},{id:"golf",label:"Golf"},
+    {id:"nadar",label:"Nadar"},{id:"caminata",label:"Caminata"}]},
+  { id: "alimentacion", label: "Alimentación",           emoji: "🍽️", color: "#A8E063", habitos: [
+    {id:"cocinar",label:"Cocinar"},{id:"meal_prep",label:"Meal prep"},{id:"sin_ultraprocesados",label:"Sin ultraprocesados"}]},
+  { id: "desarrollo_p", label: "Desarrollo Personal",    emoji: "📚", color: "#C9B1FF", habitos: [
+    {id:"lectura",label:"Lectura"},{id:"meditacion",label:"Meditación"},{id:"journaling",label:"Journaling"}]},
+  { id: "desarrollo_f", label: "Desarrollo Profesional", emoji: "🚀", color: "#FFD93D", habitos: [
+    {id:"exposicion_prof",label:"Exposición profesional"},{id:"networking",label:"Networking"},
+    {id:"formacion",label:"Formación"},{id:"deep_work",label:"Deep work"}]},
+  { id: "familia",      label: "Familia & Amigos",       emoji: "❤️", color: "#FF6B6B", habitos: [
+    {id:"llamar",label:"Llamar"},{id:"quedar",label:"Quedar"},
+    {id:"mensaje_especial",label:"Mensaje especial"},{id:"chiamare_amici",label:"Chiamare amici"}]},
+  { id: "financieros",  label: "Financieros",            emoji: "💰", color: "#FF9F43", habitos: [
+    {id:"revisar_inversiones",label:"Revisar inversiones"},{id:"ahorro_activo",label:"Ahorro activo"}]},
+  { id: "ocio",         label: "Ocio & Cultura",         emoji: "🎭", color: "#4A9EFF", habitos: [
+    {id:"peliculas",label:"Películas"},{id:"teatro",label:"Teatro"},
+    {id:"musica",label:"Música"},{id:"escapadas",label:"Escapadas"}]},
+  { id: "side",         label: "Side Projects",          emoji: "⚡", color: "#E8D5A3", habitos: [
+    {id:"sesion_proyecto",label:"Sesión de proyecto"}]},
 ];
 
 const PALETTE = [
@@ -433,11 +446,12 @@ function KpiTab({ kpiData, setKpiData, kpiGroups, scriptUrl, dayTypes, defaultDa
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function HabitoForm({ initial, habGroups, onSave, onCancel }) {
-  const [h, setH] = useState(initial||{id:uid(),date:today(),grupo:"",habito:"",comentario:"",veces:1,duracion:null,distancia:null});
+  const [h, setH] = useState(initial||{id:uid(),date:today(),grupo:"",habito_id:"",habito_label:"",comentario:"",veces:1,duracion:null,distancia:null});
   const u=(k,v)=>setH(p=>({...p,[k]:v}));
-  const gObj=habGroups.find(g=>g.id===h.grupo);
-  const habOpts=gObj?.habitos||[];
-  const canSave=h.grupo&&h.habito;
+  const gObj    = habGroups.find(g=>g.id===h.grupo);
+  // Normalizar habitos del grupo a objetos
+  const habOpts = (gObj?.habitos||[]).map(hb=>typeof hb==="string"?{id:hb,label:hb}:hb);
+  const canSave = h.grupo && h.habito_id;
 
   return (
     <div style={S.formWrap}>
@@ -452,7 +466,7 @@ function HabitoForm({ initial, habGroups, onSave, onCancel }) {
       <label style={S.lbl}>Categoría</label>
       <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
         {habGroups.map(g=>(
-          <button key={g.id} onClick={()=>{u("grupo",g.id);u("habito","");}}
+          <button key={g.id} onClick={()=>{u("grupo",g.id);u("habito_id","");u("habito_label","");}}
             style={{...S.chip, background:h.grupo===g.id?g.color+"20":"transparent", border:`1.5px solid ${h.grupo===g.id?g.color:"#222"}`, color:h.grupo===g.id?g.color:"#444"}}>
             {g.emoji} {g.label}
           </button>
@@ -463,13 +477,13 @@ function HabitoForm({ initial, habGroups, onSave, onCancel }) {
         <label style={S.lbl}>Actividad</label>
         <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:8 }}>
           {habOpts.map(hb=>(
-            <button key={hb} onClick={()=>u("habito",hb)}
-              style={{...S.chip, background:h.habito===hb?(gObj?.color||"#888")+"20":"transparent", border:`1.5px solid ${h.habito===hb?gObj?.color||"#888":"#222"}`, color:h.habito===hb?gObj?.color||"#888":"#555"}}>
-              {hb}
+            <button key={hb.id} onClick={()=>{u("habito_id",hb.id);u("habito_label",hb.label);}}
+              style={{...S.chip, background:h.habito_id===hb.id?(gObj?.color||"#888")+"20":"transparent", border:`1.5px solid ${h.habito_id===hb.id?gObj?.color||"#888":"#222"}`, color:h.habito_id===hb.id?gObj?.color||"#888":"#555"}}>
+              {hb.label}
             </button>
           ))}
         </div>
-        <input value={!habOpts.includes(h.habito)?h.habito:""} onChange={e=>u("habito",e.target.value)}
+        <input value={!habOpts.some(hb=>hb.id===h.habito_id)?h.habito_label:""} onChange={e=>{u("habito_label",e.target.value);u("habito_id",e.target.value.toLowerCase().replace(/[^a-z0-9]/g,"_"));}}
           placeholder="Otra actividad..." style={{...S.dateIn,width:"100%",marginBottom:16}}/>
       </>)}
 
@@ -518,7 +532,7 @@ function HabitoItem({ h, color, grupoLabel, onEdit, onDelete }) {
             <span style={{ fontSize:11, color, fontFamily:"monospace", fontWeight:600 }}>{grupoLabel}</span>
             <span style={{ fontSize:10, color:"#333" }}>{fmtShort(h.date)}</span>
           </div>
-          <p style={{ fontSize:15, fontWeight:700, margin:"0 0 4px", fontFamily:"var(--fd)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{h.habito}</p>
+          <p style={{ fontSize:15, fontWeight:700, margin:"0 0 4px", fontFamily:"var(--fd)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{h.habito_label||h.habito}</p>
           {h.comentario && <p style={{ fontSize:11, color:"#555", margin:"0 0 6px", fontStyle:"italic" }}>{h.comentario}</p>}
           <div style={{ display:"flex", gap:10 }}>
             {h.veces>0     && <span style={{ fontSize:11, color:"#444", fontFamily:"monospace" }}>×{h.veces}</span>}
@@ -783,15 +797,30 @@ function KpiGroupEditor({ group, onUpdate, onDelete, onMoveUp, onMoveDown, isFir
 function HabGroupEditor({ group, onUpdate, onDelete, onMoveUp, onMoveDown, isFirst, isLast }) {
   const [open,setOpen]=useState(false);
   const [newH,setNewH]=useState("");
+  const [newHId,setNewHId]=useState("");
   const [editIdx,setEditIdx]=useState(null);
   const [editVal,setEditVal]=useState("");
+
+  // Normalizar: si habitos son strings (legado), los convertimos
+  const habitos = (group.habitos||[]).map(h =>
+    typeof h === "string" ? {id: h.toLowerCase().replace(/[^a-z0-9]/g,"_"), label: h} : h
+  );
+
+  const addHabito = () => {
+    if (!newH.trim()) return;
+    const autoId = newH.trim().toLowerCase().replace(/[^a-z0-9]/g,"_").replace(/__+/g,"_");
+    const finalId = newHId.trim() || autoId;
+    if (habitos.some(h=>h.id===finalId)) { alert(`ID "${finalId}" ya existe`); return; }
+    onUpdate({...group, habitos:[...habitos, {id:finalId, label:newH.trim()}]});
+    setNewH(""); setNewHId("");
+  };
 
   return (
     <div style={{...S.card,marginBottom:8}}>
       <div style={{ display:"flex", alignItems:"center", gap:8, padding:"12px 14px" }}>
         <span style={{ fontSize:20 }}>{group.emoji}</span>
         <span style={{...S.cardLabel,flex:1,color:group.color}}>{group.label}</span>
-        <span style={{ fontSize:10, color:"#333", fontFamily:"monospace" }}>{group.habitos.length}</span>
+        <span style={{ fontSize:10, color:"#333", fontFamily:"monospace" }}>{habitos.length}</span>
         <div style={{ display:"flex", gap:4 }}>
           {!isFirst && <button onClick={onMoveUp}   style={{...S.iconBtn,fontSize:12}}>↑</button>}
           {!isLast  && <button onClick={onMoveDown}  style={{...S.iconBtn,fontSize:12}}>↓</button>}
@@ -814,30 +843,45 @@ function HabGroupEditor({ group, onUpdate, onDelete, onMoveUp, onMoveDown, isFir
           <label style={S.lbl}>Color</label>
           <ColorPicker value={group.color} onChange={c=>onUpdate({...group,color:c})}/>
           <label style={{...S.lbl,marginTop:14}}>Actividades</label>
-          {group.habitos.map((h,i)=>(
-            <div key={i} style={{ display:"flex", alignItems:"center", gap:6, marginBottom:5 }}>
+          {habitos.map((h,i)=>(
+            <div key={h.id} style={{ display:"flex", alignItems:"center", gap:6, marginBottom:5 }}>
+              <div style={{ display:"flex", flexDirection:"column" }}>
+                <button onClick={()=>{if(i===0)return;const a=[...habitos];[a[i],a[i-1]]=[a[i-1],a[i]];onUpdate({...group,habitos:a});}}
+                  style={{...S.iconBtn,fontSize:12,padding:"1px 5px",minHeight:18,opacity:i===0?.2:1}}>↑</button>
+                <button onClick={()=>{if(i===habitos.length-1)return;const a=[...habitos];[a[i],a[i+1]]=[a[i+1],a[i]];onUpdate({...group,habitos:a});}}
+                  style={{...S.iconBtn,fontSize:12,padding:"1px 5px",minHeight:18,opacity:i===habitos.length-1?.2:1}}>↓</button>
+              </div>
               {editIdx===i
                 ?<>
                   <input value={editVal} onChange={e=>setEditVal(e.target.value)} autoFocus
-                    onKeyDown={e=>{if(e.key==="Enter"){onUpdate({...group,habitos:group.habitos.map((x,xi)=>xi===i?editVal:x)});setEditIdx(null);}}}
+                    onKeyDown={e=>{if(e.key==="Enter"){onUpdate({...group,habitos:habitos.map((x,xi)=>xi===i?{...x,label:editVal}:x)});setEditIdx(null);}}}
                     style={{...S.dateIn,flex:1}}/>
-                  <button onClick={()=>{onUpdate({...group,habitos:group.habitos.map((x,xi)=>xi===i?editVal:x)});setEditIdx(null);}} style={{...S.chip,background:"#A8E06318",color:"#A8E063",border:"1px solid #A8E06344",fontSize:11}}>✓</button>
+                  <button onClick={()=>{onUpdate({...group,habitos:habitos.map((x,xi)=>xi===i?{...x,label:editVal}:x)});setEditIdx(null);}}
+                    style={{...S.chip,background:"#A8E06318",color:"#A8E063",border:"1px solid #A8E06344",fontSize:11}}>✓</button>
                   <button onClick={()=>setEditIdx(null)} style={S.iconBtn}>✕</button>
                 </>
                 :<>
-                  <span style={{ flex:1, fontSize:12, color:"#aaa", padding:"6px 8px", background:"#0e0e0e", borderRadius:6 }}>{h}</span>
-                  <button onClick={()=>{setEditIdx(i);setEditVal(h);}} style={S.iconBtn}>✎</button>
-                  <ConfirmBtn onConfirm={()=>onUpdate({...group,habitos:group.habitos.filter((_,xi)=>xi!==i)})}/>
+                  <div style={{ flex:1, padding:"5px 8px", background:"#0e0e0e", borderRadius:6 }}>
+                    <span style={{ fontSize:12, color:"#aaa", display:"block" }}>{h.label}</span>
+                    <span style={{ fontSize:9, color:"#3a3a3a", fontFamily:"monospace" }}>{h.id}</span>
+                  </div>
+                  <button onClick={()=>{setEditIdx(i);setEditVal(h.label);}} style={S.iconBtn}>✎</button>
+                  <ConfirmBtn onConfirm={()=>onUpdate({...group,habitos:habitos.filter((_,xi)=>xi!==i)})}/>
                 </>
               }
             </div>
           ))}
-          <div style={{ display:"flex", gap:6, marginTop:6 }}>
-            <input value={newH} onChange={e=>setNewH(e.target.value)} placeholder="Nueva actividad..."
-              onKeyDown={e=>{if(e.key==="Enter"&&newH.trim()){onUpdate({...group,habitos:[...group.habitos,newH.trim()]});setNewH("");}}}
-              style={{...S.dateIn,flex:1}}/>
-            <button onClick={()=>{if(newH.trim()){onUpdate({...group,habitos:[...group.habitos,newH.trim()]});setNewH("");}}}
-              style={{...S.chip,background:"#A8E06318",color:"#A8E063",border:"1px solid #A8E06344"}}>+</button>
+          {/* Nuevo hábito */}
+          <div style={{ background:"#0a0a0a", borderRadius:8, border:"1px dashed #222", padding:"10px", marginTop:8 }}>
+            <label style={S.lbl}>Nueva actividad</label>
+            <input value={newH} onChange={e=>{setNewH(e.target.value); if(!newHId) setNewHId(e.target.value.toLowerCase().replace(/[^a-z0-9]/g,"_").replace(/__+/g,"_"));}}
+              placeholder="Nombre..." onKeyDown={e=>e.key==="Enter"&&addHabito()} style={{...S.dateIn,width:"100%",marginBottom:6}}/>
+            <div style={{ display:"flex", gap:6, alignItems:"center", marginBottom:6 }}>
+              <span style={{ fontSize:10, color:"#444", fontFamily:"monospace", whiteSpace:"nowrap" }}>ID:</span>
+              <input value={newHId} onChange={e=>setNewHId(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))}
+                placeholder="id_tecnico" style={{...S.dateIn,flex:1,fontFamily:"monospace",fontSize:11,color:"#FFD93D"}}/>
+            </div>
+            <button onClick={addHabito} style={{...S.chip,background:"#A8E06318",color:"#A8E063",border:"1px solid #A8E06344"}}>+ Añadir</button>
           </div>
         </div>
       )}
