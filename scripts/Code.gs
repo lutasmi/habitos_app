@@ -69,9 +69,9 @@ function readKpis(ss) {
     ids.forEach((id, i) => {
       if (i === 0) return;
       const val = row[i];
-      if (val === "" || val === null) obj[id] = null;
-      else if (val === 1) obj[id] = true;
-      else if (val === 0) obj[id] = null;
+      if (val === "" || val === null || val === undefined) obj[id] = null; // sin responder
+      else if (val === 1)  obj[id] = true;   // marcado Sí
+      else if (val === 0)  obj[id] = false;  // marcado No explícitamente
       else obj[id] = val;
     });
     result[dateStr] = obj;
@@ -320,8 +320,8 @@ function applyKpiFormatting(sheet) {
         for (let c = 2; c <= lastCol; c++) {
           const cell = sheet.getRange(r, c);
           const val  = cell.getValue();
-          if (val === 1)  { cell.setBackground("#E8F5E9").setFontColor("#2E7D32"); }
-          else if (val === 0) { cell.setBackground(r%2===0?"#F7F7F7":"#FFFFFF").setFontColor("#888"); }
+          if (val === 1)  { cell.setBackground("#E8F5E9").setFontColor("#2E7D32"); }  // Sí — verde
+          else if (val === 0) { cell.setBackground("#FFEBEE").setFontColor("#C62828"); } // No — rojo
         }
       }
     }
