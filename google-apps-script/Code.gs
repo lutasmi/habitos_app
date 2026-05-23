@@ -205,6 +205,7 @@ function readAll() {
     dailyRecords: readDailyRecords(),
     dailyHabitValues: readDailyHabitValues(),
     activityLog: readActivityLog(),
+    changeLog: readChangeLog(),
   };
 }
 
@@ -230,6 +231,10 @@ function readDailyHabitValues() {
 
 function readActivityLog() {
   return sheetToObjects(SHEET_NAMES.ACTIVITY_LOG);
+}
+
+function readChangeLog() {
+  return sheetToObjects(SHEET_NAMES.CHANGE_LOG);
 }
 
 // ------------------------------------------------------------
