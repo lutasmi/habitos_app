@@ -261,3 +261,36 @@ Registro de auditoría de todos los cambios realizados en la app o en Sheets.
 3. Al guardar (botón manual), la app envía a Sheets y reemplaza su estado local por la respuesta oficial.
 4. Si Sheets reemplaza datos locales, la app muestra aviso informativo (no pide decisión).
 5. Si el guardado falla, se muestra error visible y **no** se marca como guardado.
+
+---
+
+## Contratos técnicos
+
+### Idempotencia en ACTIVITY_LOG
+
+`activity_log_id` lo genera **siempre el cliente** usando `generateActivityLogId(date)` antes de enviar el payload. El servidor hace upsert por ese ID:
+
+- Si el ID no existe en la hoja → `create` (nueva fila).
+- Si el ID ya existe → `update` (sobreescribe la fila, conserva `created_at` original).
+
+Consecuencia: si la red falla después de que Sheets escribió pero antes de devolver `ok: true`, el cliente puede reintentar el mismo POST con el mismo `activity_log_id` sin crear un duplicado.
+
+El servidor rechaza con error cualquier payload de actividad sin `activity_log_id`.
+
+### Migración de columnas (`ensureSheetSchema`)
+
+`setupSheets()` puede ejecutarse en cualquier momento, en hojas nuevas o existentes:
+
+- **Hoja nueva**: la crea con todas las cabeceras en negrita.
+- **Hoja existente**: lee la fila 1, detecta columnas faltantes y las añade **al final**.
+  - No borra columnas existentes.
+  - No reordena columnas existentes.
+  - No toca datos.
+
+Esto permite añadir columnas al modelo en futuras fases sin romper instancias ya desplegadas. Basta con ejecutar `?action=setup` de nuevo tras actualizar `Code.gs`.
+
+### HTTP POST y CORS
+
+Los POSTs al Apps Script se envían **sin el header `Content-Type: application/json`**. Esto es intencional: ese header convierte la petición en "non-simple" según la spec CORS, lo que dispara un preflight `OPTIONS` que Apps Script no maneja.
+
+Al omitir el header, el navegador trata el POST como simple request. El body sigue siendo JSON serializado (`JSON.stringify`). `doPost` lee `e.postData.contents` y parsea con `JSON.parse`, lo que funciona independientemente del `Content-Type` declarado.

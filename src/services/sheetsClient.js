@@ -89,9 +89,12 @@ async function postAction(action, payload) {
     return { ok: false, error: 'URL del Apps Script no configurada. Revisa VITE_APPS_SCRIPT_URL.' };
   }
 
+  // SIN headers personalizados. Content-Type: application/json dispara un preflight
+  // OPTIONS que Google Apps Script no maneja, rompiendo CORS. Al omitir el header,
+  // el navegador trata la petición como "simple" y no envía preflight.
+  // El body sigue siendo JSON serializado; doPost lee e.postData.contents y parsea.
   return fetchWithTimeout(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, payload }),
   });
 }

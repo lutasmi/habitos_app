@@ -101,11 +101,19 @@ export function getActivityProgress(activity, logs, referenceDate) {
 
 /**
  * Genera un ID único para un nuevo registro de actividad.
+ *
+ * CONTRATO: El ID debe generarse en el CLIENTE antes de enviar el payload.
+ * El servidor hace upsert por este ID → si se reintenta el mismo POST,
+ * no se crea un duplicado. El ID viaja siempre en el payload.
+ *
+ * Formato: log_YYYYMMDD_<timestamp_ms>_<random4>
+ * Ejemplo: log_20240115_1705312345678_4821
+ *
  * @param {string} date 'YYYY-MM-DD'
  * @returns {string}
  */
 export function generateActivityLogId(date) {
   const ts = Date.now();
-  const rand = Math.floor(Math.random() * 1000);
+  const rand = Math.floor(Math.random() * 9000) + 1000; // 4 dígitos, nunca < 1000
   return `log_${date.replace(/-/g, '')}_${ts}_${rand}`;
 }
