@@ -16,6 +16,42 @@ export function todayString() {
 }
 
 /**
+ * Alias explícito de todayString().
+ * Usado en comparaciones de "es hoy" para dejar clara la intención.
+ * @returns {string} 'YYYY-MM-DD'
+ */
+export function getTodayDateKey() {
+  return todayString();
+}
+
+/**
+ * Normaliza cualquier valor de fecha a string 'YYYY-MM-DD'.
+ * Maneja strings ISO, strings con timestamp y objetos Date.
+ * Nunca compara objetos Date directamente.
+ * @param {string|Date} value
+ * @returns {string} 'YYYY-MM-DD'
+ */
+export function normalizeDateKey(value) {
+  if (!value) return '';
+
+  if (value instanceof Date) {
+    return formatDate(value);
+  }
+
+  const str = String(value).trim();
+
+  // Ya es YYYY-MM-DD o YYYY-MM-DDTHH:...
+  const isoMatch = str.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoMatch) return isoMatch[1];
+
+  // Último recurso: parsear como Date
+  const parsed = new Date(str);
+  if (!isNaN(parsed)) return formatDate(parsed);
+
+  return str.slice(0, 10);
+}
+
+/**
  * Formatea un objeto Date como 'YYYY-MM-DD' en hora local.
  * @param {Date} date
  * @returns {string}
@@ -28,7 +64,8 @@ export function formatDate(date) {
 }
 
 /**
- * Parsea un string 'YYYY-MM-DD' a objeto Date (mediodia local para evitar problemas de zona).
+ * Parsea un string 'YYYY-MM-DD' a objeto Date (mediodía local para evitar
+ * problemas de zona horaria al cruzar medianoche).
  * @param {string} dateString
  * @returns {Date}
  */
@@ -114,7 +151,7 @@ export function weekDayName(dateString) {
 export function monthName(dateString) {
   const months = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
   ];
   const monthIndex = parseInt(dateString.substring(5, 7), 10) - 1;
   return months[monthIndex];
