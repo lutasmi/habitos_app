@@ -1,0 +1,183 @@
+/**
+ * AppShell.jsx
+ *
+ * Componente raíz que gestiona:
+ * - Carga inicial de datos desde Sheets (config + records + activities)
+ * - Estado compartido entre pantallas (config, logs, sync)
+ * - Navegación entre Hábitos y Actividades
+ *
+ * TodayPage y ActivitiesPage reciben datos como props.
+ * Ninguna de las dos páginas hace peticiones de red directamente
+ * salvo para sus propias operaciones de escritura.
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import '../../styles/activities.css';
+import { TodayPage }      from '../today/TodayPage.jsx';
+import { ActivitiesPage } from '../activities/ActivitiesPage.jsx';
+import { BottomNav }      from '../common/BottomNav.jsx';
+import { loadOnOpen }     from '../../services/syncService.js';
+import { getLastSyncTime } from '../../services/localCache.js';
+
+export function AppShell() {
+  const [activeTab, setActiveTab] = useState('habits');
+
+  // Estado global compartido
+  const [config,          setConfig]          = useState(null);
+  const [allDailyRecords, setAllDailyRecords] = useState([]);
+  const [allHabitValues,  setAllHabitValues]  = useState([]);
+  const [activityLog,     setActivityLog]     = useState([]);
+
+  // Sync
+  const [syncStatus,  setSyncStatus]  = useState('checking');
+  const [syncMessage, setSyncMessage] = useState('Conectando…');
+  const [lastSync,    setLastSync]    = useState(getLastSyncTime());
+  const [replacedWarning, setReplacedWarning] = useState(false);
+
+  // ── Procesar datos recibidos (caché o Sheets) ─────────────────────────────
+
+  const applyData = useCallback((data) => {
+    const c = data.config || {};
+    setConfig({
+      habits:          c.habits          || [],
+      habitGroups:     c.habitGroups     || [],
+      dayTypes:        c.dayTypes        || [],
+      scoreRules:      c.scoreRules      || [],
+      activities:      c.activities      || [],
+      activityGroups:  c.activityGroups  || [],
+    });
+    setAllDailyRecords(data.dailyRecords     || []);
+    setAllHabitValues( data.dailyHabitValues || []);
+    setActivityLog(    data.activityLog      || []);
+  }, []);
+
+  // ── Carga inicial ─────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    loadOnOpen(
+      (cached) => {
+        applyData(cached);
+        setSyncStatus('checking');
+        setSyncMessage('Actualizando…');
+      },
+      (result) => {
+        if (result.ok) {
+          applyData(result.data);
+          setSyncStatus('ok');
+          setSyncMessage('Sincronizado');
+          setLastSync(getLastSyncTime());
+          if (result.replacedLocalData) {
+            setReplacedWarning(true);
+            setTimeout(() => setReplacedWarning(false), 4000);
+          }
+        } else {
+          setSyncStatus('error');
+          setSyncMessage('Sin conexión con Sheets');
+        }
+      }
+    );
+  }, [applyData]);
+
+  // ── Callbacks de escritura ─────────────────────────────────────────────────
+
+  /**
+   * Llamado por TodayPage cuando el guardado en Sheets fue exitoso.
+   * Actualiza registros diarios y hábitos en memoria.
+   */
+  function handleDailySaved({ date, dayTypeId, note, scoreDay, habitValuesArray }) {
+    setAllDailyRecords(prev => {
+      const others = prev.filter(r => r.date !== date);
+      return [...others, {
+        date,
+        day_type_id: dayTypeId,
+        note,
+        score_day:   scoreDay,
+        score_week:  '',
+        score_month: '',
+        updated_at:  new Date().toISOString(),
+        updated_by:  'app',
+      }];
+    });
+    setAllHabitValues(prev => {
+      const others = prev.filter(hv => hv.date !== date);
+      return [...others, ...habitValuesArray];
+    });
+    setSyncStatus('ok');
+    setSyncMessage('Guardado');
+    setLastSync(new Date().toISOString());
+  }
+
+  /**
+   * Llamado por ActivitiesPage cuando se guarda o edita una actividad.
+   * Upsert por activity_log_id:
+   *   - Si el ID ya existe en memoria → reemplaza el registro (edición).
+   *   - Si no existe → añade al final (nuevo registro).
+   * Así la lista en pantalla refleja el estado real inmediatamente.
+   */
+  function handleActivityLogged(payload) {
+    const now = new Date().toISOString();
+
+    setActivityLog(prev => {
+      const exists = prev.some(
+        item => item.activity_log_id === payload.activity_log_id
+      );
+
+      const updated = {
+        activity_log_id: payload.activity_log_id,
+        date:            payload.date,
+        activity_id:     payload.activity_id,
+        duration_min:    String(payload.duration_min ?? ''),
+        distance_km:     String(payload.distance_km  ?? ''),
+        comment:         payload.comment || '',
+        // created_at: conservar si ya existía; si es nuevo, usar ahora
+        created_at: exists
+          ? (prev.find(i => i.activity_log_id === payload.activity_log_id)?.created_at || now)
+          : now,
+        updated_at:  now,
+        updated_by:  'app',
+      };
+
+      if (exists) {
+        return prev.map(item =>
+          item.activity_log_id === payload.activity_log_id ? updated : item
+        );
+      }
+      return [...prev, updated];
+    });
+
+    setSyncStatus('ok');
+    setSyncMessage('Actividad guardada');
+    setLastSync(now);
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  const syncProps = { syncStatus, syncMessage, lastSync, replacedWarning };
+
+  return (
+    <div className="app-shell">
+      {activeTab === 'habits' && (
+        <TodayPage
+          config={config}
+          allDailyRecords={allDailyRecords}
+          allHabitValues={allHabitValues}
+          onDailySaved={handleDailySaved}
+          {...syncProps}
+        />
+      )}
+
+      {activeTab === 'activities' && (
+        <ActivitiesPage
+          config={config}
+          activityLog={activityLog}
+          onActivityLogged={handleActivityLogged}
+          syncStatus={syncStatus}
+          syncMessage={syncMessage}
+          lastSync={lastSync}
+        />
+      )}
+
+      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+    </div>
+  );
+}

@@ -1,0 +1,319 @@
+/* ================================================================
+   activities.css — Estilos exclusivos de Fase 3
+   Importado solo por ActivitiesPage.jsx / AppShell.jsx.
+   No sobreescribe ni duplica nada de global.css.
+   ================================================================ */
+
+/* ---- DateSelector: etiqueta "Hoy" vs botón "Ir a hoy" ---- */
+/* (también usada en TodayPage — clases nuevas que no existían antes) */
+
+.today-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: #eff6ff;
+  color: var(--color-accent);
+  border: 1px solid #bfdbfe;
+  font-weight: 500;
+  pointer-events: none;
+  user-select: none;
+}
+
+.today-button {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--color-accent);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--color-accent);
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.1s;
+}
+
+.today-button:hover {
+  background: #eff6ff;
+}
+
+/* ---- AppShell ---- */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ---- BottomNav ---- */
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.bottom-nav__tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 0 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  transition: color 0.15s;
+}
+
+.bottom-nav__tab--active {
+  color: var(--color-accent);
+}
+
+.bottom-nav__icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.bottom-nav__label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+/* Espacio inferior para que el contenido no quede bajo el BottomNav */
+.today-page {
+  padding-bottom: 64px;
+}
+
+/* El FloatingSaveButton sube un poco para no solapar el BottomNav */
+.floating-save-btn {
+  bottom: 80px;
+}
+
+/* ---- ActivityCard ---- */
+
+.activity-card {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.activity-card:last-child {
+  border-bottom: none;
+}
+
+.activity-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.activity-card__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.activity-card__name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.activity-card__desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.activity-card__add-btn {
+  flex-shrink: 0;
+  font-size: 13px;
+  padding: 5px 12px;
+}
+
+/* ---- Barra de progreso ---- */
+
+.activity-progress {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.activity-progress__bar-wrap {
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.activity-progress__bar {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  min-width: 0;
+}
+
+.activity-progress__label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* ---- Lista de registros del día ---- */
+
+.activity-log-list {
+  margin-top: 8px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.activity-log-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.activity-log-entry__index {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.activity-log-entry__comment {
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Formulario de registro de actividad ---- */
+
+.activity-log-form {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.activity-log-form__header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.activity-log-form__title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.activity-log-form__desc {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.activity-log-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.activity-log-form__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+/* ---- Campos de formulario de actividad ---- */
+/* Usan prefijo .form-* para no colisionar con .field-* de hábitos */
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.form-input {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 14px;
+  color: var(--color-text);
+  width: 100%;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.form-textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 14px;
+  color: var(--color-text);
+  font-family: var(--font);
+  line-height: 1.5;
+  resize: vertical;
+  width: 100%;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.form-error {
+  font-size: 13px;
+  color: var(--color-error);
+  margin-top: 6px;
+}
+
+/* ---- Botón editar en cada registro ---- */
+
+.activity-log-entry__edit-btn {
+  margin-left: auto;        /* empuja el botón al extremo derecho */
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  padding: 2px 8px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: border-color 0.1s, color 0.1s;
+}
+
+.activity-log-entry__edit-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
