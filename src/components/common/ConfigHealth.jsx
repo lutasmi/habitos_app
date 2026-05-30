@@ -1,19 +1,23 @@
 /**
  * ConfigHealth.jsx
  *
- * Pantalla "Sistema": muestra el resultado de validar la configuración
- * cargada desde Google Sheets.
+ * Pantalla "Sistema" con tres tabs internas:
+ *   Salud     → validación de configuración (comportamiento original)
+ *   Hábitos   → editor de CONFIG_HABITS
+ *   Actividades → editor de CONFIG_ACTIVITIES
  *
- * No bloquea el uso de la app. Solo informa.
- * Los datos vienen de AppShell (sin peticiones nuevas).
+ * No bloquea el uso de la app. Solo informa y permite editar.
  */
 
+import { useState, useMemo } from 'react';
 import '../../styles/config-health.css';
-import { SyncStatus }          from './SyncStatus.jsx';
+import '../../styles/config-editor.css';
+import { SyncStatus }             from './SyncStatus.jsx';
 import { validateConfig, groupIssuesBySheet } from '../../domain/configValidation.js';
-import { useMemo }             from 'react';
+import { HabitConfigEditor }      from '../system/HabitConfigEditor.jsx';
+import { ActivityConfigEditor }   from '../system/ActivityConfigEditor.jsx';
 
-// ── Subcomponentes ────────────────────────────────────────────────────────────
+// ── Subcomponentes de Salud ───────────────────────────────────────────────────
 
 function IssueIcon({ severity }) {
   return (
@@ -26,7 +30,6 @@ function IssueIcon({ severity }) {
 function SheetBlock({ sheetName, issues }) {
   const errors   = issues.filter(i => i.severity === 'error').length;
   const warnings = issues.filter(i => i.severity === 'warning').length;
-
   return (
     <div className="ch-sheet-block">
       <div className="ch-sheet-block__header">
@@ -36,7 +39,6 @@ function SheetBlock({ sheetName, issues }) {
           {warnings > 0 && <span className="ch-badge ch-badge--warning">{warnings} aviso{warnings > 1 ? 's' : ''}</span>}
         </div>
       </div>
-
       <ul className="ch-issue-list">
         {issues.map((issue, i) => (
           <li key={i} className="ch-issue">
@@ -54,37 +56,69 @@ function SheetBlock({ sheetName, issues }) {
   );
 }
 
-// ── Componente principal ──────────────────────────────────────────────────────
+// ── Tab: Salud ────────────────────────────────────────────────────────────────
 
-export function ConfigHealth({ config, syncStatus, syncMessage, lastSync }) {
+function HealthTab({ config }) {
   const { issues, errorCount, warningCount } = useMemo(
     () => validateConfig(config),
     [config]
   );
-
   const grouped = useMemo(() => groupIssuesBySheet(issues), [issues]);
 
-  // Orden de hojas en la UI (preferencia visual, no funcional)
   const SHEET_ORDER = [
-    'CONFIG_HABIT_GROUPS',
-    'CONFIG_HABITS',
-    'CONFIG_ACTIVITY_GROUPS',
-    'CONFIG_ACTIVITIES',
-    'CONFIG_DAY_TYPES',
-    'CONFIG_SCORE',
+    'CONFIG_HABIT_GROUPS', 'CONFIG_HABITS',
+    'CONFIG_ACTIVITY_GROUPS', 'CONFIG_ACTIVITIES',
+    'CONFIG_DAY_TYPES', 'CONFIG_SCORE',
   ];
 
   const sortedSheets = Object.keys(grouped).sort((a, b) => {
-    const ia = SHEET_ORDER.indexOf(a);
-    const ib = SHEET_ORDER.indexOf(b);
+    const ia = SHEET_ORDER.indexOf(a), ib = SHEET_ORDER.indexOf(b);
     if (ia === -1 && ib === -1) return a.localeCompare(b);
-    if (ia === -1) return 1;
-    if (ib === -1) return -1;
-    return ia - ib;
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
   });
 
+  const isClean = errorCount === 0 && warningCount === 0;
+
+  return (
+    <>
+      <div className="ch-summary">
+        {isClean && <span className="ch-summary__chip ch-summary__chip--ok">✓ Sin problemas</span>}
+        {errorCount   > 0 && <span className="ch-summary__chip ch-summary__chip--error">✕ {errorCount} error{errorCount > 1 ? 'es' : ''}</span>}
+        {warningCount > 0 && <span className="ch-summary__chip ch-summary__chip--warning">! {warningCount} aviso{warningCount > 1 ? 's' : ''}</span>}
+      </div>
+
+      {isClean && (
+        <div className="ch-clean">
+          <span className="ch-clean__icon">✓</span>
+          <span className="ch-clean__title">Configuración correcta</span>
+          <span className="ch-clean__sub">No se detectaron problemas en las hojas de configuración.</span>
+        </div>
+      )}
+
+      {sortedSheets.map(sheet => (
+        <SheetBlock key={sheet} sheetName={sheet} issues={grouped[sheet]} />
+      ))}
+
+      <p className="ch-info-note">
+        La validación se ejecuta sobre los datos cargados desde Google Sheets.
+        Corrige los problemas directamente en Sheets y recarga la app, o usa las
+        tabs Hábitos y Actividades para editar desde aquí.
+      </p>
+    </>
+  );
+}
+
+// ── Componente principal ──────────────────────────────────────────────────────
+
+export function ConfigHealth({
+  config,
+  onConfigUpdated,
+  syncStatus,
+  syncMessage,
+  lastSync,
+}) {
+  const [tab, setTab] = useState('health');
   const isLoading = config === null;
-  const isClean   = !isLoading && errorCount === 0 && warningCount === 0;
 
   return (
     <div className="system-page">
@@ -94,60 +128,31 @@ export function ConfigHealth({ config, syncStatus, syncMessage, lastSync }) {
       </header>
 
       <main className="system-main">
-
-        {isLoading && (
-          <div className="ch-loading">Cargando configuración…</div>
-        )}
+        {isLoading && <div className="ch-loading">Cargando configuración…</div>}
 
         {!isLoading && (
           <>
-            {/* Resumen */}
-            <div className="ch-summary">
-              {isClean && (
-                <span className="ch-summary__chip ch-summary__chip--ok">
-                  ✓ Sin problemas
-                </span>
-              )}
-              {errorCount > 0 && (
-                <span className="ch-summary__chip ch-summary__chip--error">
-                  ✕ {errorCount} error{errorCount > 1 ? 'es' : ''}
-                </span>
-              )}
-              {warningCount > 0 && (
-                <span className="ch-summary__chip ch-summary__chip--warning">
-                  ! {warningCount} aviso{warningCount > 1 ? 's' : ''}
-                </span>
-              )}
+            {/* Tabs internas */}
+            <div className="sys-tabs">
+              <button className={`sys-tab${tab === 'health'      ? ' sys-tab--active' : ''}`}
+                onClick={() => setTab('health')}>Salud</button>
+              <button className={`sys-tab${tab === 'habits'      ? ' sys-tab--active' : ''}`}
+                onClick={() => setTab('habits')}>Hábitos</button>
+              <button className={`sys-tab${tab === 'activities'  ? ' sys-tab--active' : ''}`}
+                onClick={() => setTab('activities')}>Actividades</button>
             </div>
 
-            {/* Estado limpio */}
-            {isClean && (
-              <div className="ch-clean">
-                <span className="ch-clean__icon">✓</span>
-                <span className="ch-clean__title">Configuración correcta</span>
-                <span className="ch-clean__sub">
-                  No se detectaron problemas en las hojas de configuración.
-                </span>
-              </div>
+            {tab === 'health' && <HealthTab config={config} />}
+
+            {tab === 'habits' && (
+              <HabitConfigEditor config={config} onConfigUpdated={onConfigUpdated} />
             )}
 
-            {/* Bloques por hoja */}
-            {sortedSheets.map(sheet => (
-              <SheetBlock
-                key={sheet}
-                sheetName={sheet}
-                issues={grouped[sheet]}
-              />
-            ))}
-
-            {/* Nota informativa */}
-            <p className="ch-info-note">
-              La validación se ejecuta sobre los datos cargados desde Google Sheets.
-              Corrige los problemas directamente en Sheets y recarga la app.
-            </p>
+            {tab === 'activities' && (
+              <ActivityConfigEditor config={config} onConfigUpdated={onConfigUpdated} />
+            )}
           </>
         )}
-
       </main>
     </div>
   );

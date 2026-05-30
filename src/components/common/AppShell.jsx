@@ -154,6 +154,16 @@ export function AppShell() {
     setLastSync(now);
   }
 
+  /**
+   * Llamado por ConfigHealth cuando se guarda configuración exitosamente.
+   * Actualiza el config en memoria para que la UI refleje los cambios
+   * sin necesidad de recargar desde Sheets.
+   * La próxima carga desde Sheets reemplazará esto (Sheets manda siempre).
+   */
+  function handleConfigUpdated(updatedConfig) {
+    setConfig(updatedConfig);
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   const syncProps = { syncStatus, syncMessage, lastSync, replacedWarning };
@@ -196,6 +206,7 @@ export function AppShell() {
       {activeTab === 'system' && (
         <ConfigHealth
           config={config}
+          onConfigUpdated={handleConfigUpdated}
           syncStatus={syncStatus}
           syncMessage={syncMessage}
           lastSync={lastSync}
