@@ -1,0 +1,218 @@
+/* ================================================================
+   evolution.css — Estilos de la pantalla Evolución (Fase 4 definitiva)
+   No modifica global.css.
+   ================================================================ */
+
+/* ---- Página y layout ---- */
+
+.evolution-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-bottom: 64px; /* espacio para BottomNav */
+}
+
+.evolution-main {
+  flex: 1;
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 12px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ---- Secciones ---- */
+
+.evo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.evo-section__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ---- Bloque individual (grupo de hábitos o actividades) ---- */
+
+.hm-block {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hm-block__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hm-block__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.hm-block__select {
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  max-width: 160px;
+}
+
+.hm-block__select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+/* ---- Grid del heatmap ---- */
+
+.hm-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hm-months {
+  display: flex;
+  flex-direction: row;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.hm-month-lbl {
+  font-size: 9px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.hm-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.hm-week {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hm-day {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.hm-day--empty {
+  background: #e9ecef;
+}
+
+/* ---- Leyenda ---- */
+
+.hm-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.hm-legend__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ---- Resumen estadístico ---- */
+
+.hm-stats {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.hm-stats strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.hm-stats-empty {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* ---- Estado de carga / vacío ---- */
+
+.evolution-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.evolution-empty code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--color-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--color-border);
+}
+
+/* ---- Tabs internas de Evolución (Hábitos / Actividades) ---- */
+
+.evo-inner-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--color-border);
+  gap: 0;
+}
+
+.evo-inner-tab {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;   /* solapa el border-bottom del contenedor */
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.evo-inner-tab--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+.evo-inner-tab:not(.evo-inner-tab--active):hover {
+  color: var(--color-text);
+}

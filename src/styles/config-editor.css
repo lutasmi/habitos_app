@@ -1,0 +1,261 @@
+/* ================================================================
+   config-editor.css — Estilos del editor de configuración (Fase 6.1)
+   No modifica global.css.
+   ================================================================ */
+
+/* ---- Tabs internas de Sistema (Salud / Hábitos / Actividades) ---- */
+
+.sys-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.sys-tab {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.sys-tab--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+.sys-tab:not(.sys-tab--active):hover {
+  color: var(--color-text);
+}
+
+/* ---- Lista de items de configuración ---- */
+
+.ce-group {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.ce-group__header {
+  padding: 10px 14px;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.ce-item {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ce-item:last-child {
+  border-bottom: none;
+}
+
+/* ---- Fila de item (modo vista) ---- */
+
+.ce-item__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  gap: 10px;
+}
+
+.ce-item__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ce-item__name {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ce-item__name--inactive {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.ce-item__meta {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.ce-item__actions {
+  flex-shrink: 0;
+}
+
+.ce-edit-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: border-color 0.1s, color 0.1s;
+}
+
+.ce-edit-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* ---- Formulario inline de edición ---- */
+
+.ce-form {
+  padding: 14px;
+  background: var(--color-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ce-form__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Campos que ocupan todo el ancho */
+.ce-form__full {
+  grid-column: 1 / -1;
+}
+
+.ce-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ce-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.ce-label--readonly {
+  color: var(--color-border);
+}
+
+.ce-input {
+  padding: 7px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 13px;
+  color: var(--color-text);
+  width: 100%;
+}
+
+.ce-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.ce-input--readonly {
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.ce-select {
+  padding: 7px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 13px;
+  color: var(--color-text);
+  width: 100%;
+}
+
+.ce-select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+/* Checkboxes */
+.ce-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.ce-checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.ce-checkbox-row label {
+  font-size: 13px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+/* ---- Acciones del formulario ---- */
+
+.ce-form__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ---- Mensaje de resultado ---- */
+
+.ce-save-msg {
+  font-size: 12px;
+  padding: 4px 0;
+  text-align: right;
+}
+
+.ce-save-msg--ok    { color: var(--color-success); }
+.ce-save-msg--error { color: var(--color-error); }
+
+/* ---- Estado vacío ---- */
+
+.ce-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+/* ---- Tabs con scroll horizontal cuando hay muchas (Sistema) ---- */
+
+.sys-tabs {
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.sys-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.sys-tab {
+  /* En scroll horizontal, no usar flex: 1 para que no se estiren */
+  flex: 0 0 auto;
+  padding: 8px 14px;
+}
