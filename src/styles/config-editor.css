@@ -240,3 +240,22 @@
   color: var(--color-text-muted);
   font-size: 13px;
 }
+
+/* ---- Tabs con scroll horizontal cuando hay muchas (Sistema) ---- */
+
+.sys-tabs {
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.sys-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.sys-tab {
+  /* En scroll horizontal, no usar flex: 1 para que no se estiren */
+  flex: 0 0 auto;
+  padding: 8px 14px;
+}

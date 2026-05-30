@@ -2,20 +2,49 @@
  * HabitConfigEditor.jsx
  *
  * Lista de hábitos agrupados por grupo con editor inline.
- * Campos editables según Fase 6.1.
- * habit_id: solo lectura (nunca editable, conserva histórico).
- * type: solo lectura en Fase 6.1.
+ *
+ * Modos:
+ *   edit   — habit_id no editable, conserva histórico
+ *   create — habit_id editable, se prerrellena desde el nombre
+ *
+ * Reglas de ID:
+ *   - solo minúsculas, números y guion_bajo
+ *   - debe ser único entre hábitos existentes
+ *   - recomendado que empiece por "hab_"
+ *   - una vez creado, nunca se puede cambiar
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { saveConfigToSheets } from '../../services/syncService.js';
 
 const POSITIVE_RULES = ['yes_is_good', 'no_is_good', 'greater_equal_target', 'lower_equal_target'];
+const ID_REGEX = /^[a-z0-9_]+$/;
 
-// ── Validación local del formulario ──────────────────────────────────────────
+// ── Helpers de ID ─────────────────────────────────────────────────────────────
 
-function validateHabitForm(draft, config) {
-  const groupIds = new Set((config.habitGroups || []).map(g => g.group_id));
+/** Genera un ID sugerido a partir de un nombre legible. */
+function suggestHabitId(name) {
+  const base = name
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quitar acentos
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 30);
+  return base ? `hab_${base}` : 'hab_';
+}
+
+// ── Validación ────────────────────────────────────────────────────────────────
+
+function validateHabitForm(draft, config, isCreate) {
+  const groupIds   = new Set((config.habitGroups || []).map(g => g.group_id));
+  const existingIds = new Set((config.habits || []).map(h => h.habit_id));
+
+  if (isCreate) {
+    if (!draft.habit_id.trim())        return 'El habit_id es obligatorio.';
+    if (!ID_REGEX.test(draft.habit_id)) return 'habit_id solo puede contener minúsculas, números y guion_bajo.';
+    if (existingIds.has(draft.habit_id)) return `habit_id "${draft.habit_id}" ya existe. Elige otro.`;
+  }
+
   if (!draft.name.trim())            return 'El nombre es obligatorio.';
   if (!groupIds.has(draft.group_id)) return `group_id "${draft.group_id}" no existe en CONFIG_HABIT_GROUPS.`;
   if (!POSITIVE_RULES.includes(draft.positive_rule)) return 'positive_rule no válida.';
@@ -27,30 +56,46 @@ function validateHabitForm(draft, config) {
   return null;
 }
 
-// ── Formulario inline ────────────────────────────────────────────────────────
+// ── Formulario inline (create y edit) ────────────────────────────────────────
 
-function HabitForm({ habit, config, onSaved, onCancel }) {
-  const [draft, setDraft]     = useState({
-    name:           habit.name          || '',
-    description:    habit.description   || '',
-    group_id:       habit.group_id      || '',
-    target_value:   habit.target_value  || '',
-    unit:           habit.unit          || '',
-    positive_rule:  habit.positive_rule || 'yes_is_good',
-    score_weight:   habit.score_weight  || '',
-    score_min:      habit.score_min     || '',
-    score_max:      habit.score_max     || '',
-    sort_order:     habit.sort_order    || '',
-    active:         habit.active === 'true' || habit.active === true,
-    visible:        habit.visible === 'true' || habit.visible === true,
+function HabitForm({ habit, config, isCreate, onSaved, onCancel }) {
+  const defaultGroupId = (config.habitGroups || []).find(
+    g => g.active === 'true' || g.active === true
+  )?.group_id || '';
+
+  const [draft, setDraft] = useState({
+    habit_id:      habit.habit_id      || '',
+    name:          habit.name          || '',
+    description:   habit.description   || '',
+    group_id:      habit.group_id      || defaultGroupId,
+    target_value:  habit.target_value  || '',
+    unit:          habit.unit          || '',
+    positive_rule: habit.positive_rule || 'yes_is_good',
+    score_weight:  habit.score_weight  || '',
+    score_min:     habit.score_min     || '',
+    score_max:     habit.score_max     || '',
+    sort_order:    habit.sort_order    || '',
+    active:        habit.active  === 'true' || habit.active  === true || isCreate,
+    visible:       habit.visible === 'true' || habit.visible === true || isCreate,
+    // type solo editable en create
+    type:          habit.type          || 'boolean',
   });
-  const [saving,   setSaving]  = useState(false);
-  const [saveMsg,  setSaveMsg] = useState(null);
+
+  const [idManuallyEdited, setIdManuallyEdited] = useState(false);
+  const [saving,  setSaving]  = useState(false);
+  const [saveMsg, setSaveMsg] = useState(null);
 
   function set(key, val) { setDraft(d => ({ ...d, [key]: val })); }
 
+  // En create: prerrellena habit_id desde el nombre si el usuario no lo ha tocado
+  useEffect(() => {
+    if (isCreate && !idManuallyEdited && draft.name) {
+      set('habit_id', suggestHabitId(draft.name));
+    }
+  }, [draft.name, isCreate, idManuallyEdited]);
+
   async function handleSave() {
-    const err = validateHabitForm(draft, config);
+    const err = validateHabitForm(draft, config, isCreate);
     if (err) { setSaveMsg({ ok: false, text: err }); return; }
 
     setSaving(true);
@@ -58,10 +103,12 @@ function HabitForm({ habit, config, onSaved, onCancel }) {
 
     const now = new Date().toISOString();
     const record = {
-      ...habit,            // conserva todos los campos originales (incluido habit_id)
+      ...(isCreate ? {} : habit),   // en create no arrastramos campos del template vacío
+      habit_id:      draft.habit_id,
       name:          draft.name.trim(),
       description:   draft.description.trim(),
       group_id:      draft.group_id,
+      type:          draft.type,
       target_value:  draft.target_value,
       unit:          draft.unit.trim(),
       positive_rule: draft.positive_rule,
@@ -72,6 +119,7 @@ function HabitForm({ habit, config, onSaved, onCancel }) {
       active:        draft.active  ? 'true' : 'false',
       visible:       draft.visible ? 'true' : 'false',
       updated_at:    now,
+      created_at:    isCreate ? now : (habit.created_at || now),
     };
 
     const result = await saveConfigToSheets({
@@ -89,42 +137,55 @@ function HabitForm({ habit, config, onSaved, onCancel }) {
     setSaving(false);
   }
 
-  const groups = (config.habitGroups || []).filter(
-    g => g.active === 'true' || g.active === true
-  );
+  const groups  = (config.habitGroups || []).filter(g => g.active === 'true' || g.active === true);
+  const TYPES   = ['boolean', 'count', 'decimal', 'rating'];
+  const idHint  = !draft.habit_id.startsWith('hab_') && draft.habit_id
+    ? '⚠ Se recomienda que empiece por "hab_"'
+    : null;
 
   return (
     <div className="ce-form">
       <div className="ce-form__grid">
 
-        {/* ID — solo lectura */}
-        <div className="ce-field">
-          <label className="ce-label ce-label--readonly">habit_id (no editable)</label>
-          <input className="ce-input ce-input--readonly" value={habit.habit_id} readOnly />
+        {/* habit_id — editable en create, readonly en edit */}
+        <div className="ce-field ce-form__full">
+          <label className={`ce-label${isCreate ? '' : ' ce-label--readonly'}`}>
+            habit_id {isCreate ? '(editable antes de crear)' : '(no editable)'}
+          </label>
+          <input
+            className={`ce-input${isCreate ? '' : ' ce-input--readonly'}`}
+            value={draft.habit_id}
+            readOnly={!isCreate}
+            onChange={e => {
+              setIdManuallyEdited(true);
+              set('habit_id', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''));
+            }}
+            placeholder="hab_mi_habito"
+          />
+          {isCreate && idHint && (
+            <span style={{ fontSize: 11, color: 'var(--color-warning)' }}>{idHint}</span>
+          )}
         </div>
 
-        {/* Tipo — solo lectura Fase 6.1 */}
-        <div className="ce-field">
-          <label className="ce-label ce-label--readonly">type (solo lectura)</label>
-          <input className="ce-input ce-input--readonly" value={habit.type || ''} readOnly />
-        </div>
-
-        {/* Nombre */}
+        {/* Nombre — en create, auto-genera el ID */}
         <div className="ce-field ce-form__full">
           <label className="ce-label">Nombre *</label>
-          <input className="ce-input" value={draft.name} onChange={e => set('name', e.target.value)} />
+          <input className="ce-input" value={draft.name}
+            onChange={e => set('name', e.target.value)} />
         </div>
 
         {/* Descripción */}
         <div className="ce-field ce-form__full">
           <label className="ce-label">Descripción</label>
-          <input className="ce-input" value={draft.description} onChange={e => set('description', e.target.value)} />
+          <input className="ce-input" value={draft.description}
+            onChange={e => set('description', e.target.value)} />
         </div>
 
         {/* Grupo */}
         <div className="ce-field ce-form__full">
           <label className="ce-label">Grupo *</label>
-          <select className="ce-select" value={draft.group_id} onChange={e => set('group_id', e.target.value)}>
+          <select className="ce-select" value={draft.group_id}
+            onChange={e => set('group_id', e.target.value)}>
             {groups.map(g => (
               <option key={g.group_id} value={g.group_id}>
                 {g.emoji ? g.emoji + ' ' : ''}{g.name}
@@ -133,15 +194,31 @@ function HabitForm({ habit, config, onSaved, onCancel }) {
           </select>
         </div>
 
+        {/* Tipo — editable en create, readonly en edit */}
+        <div className="ce-field">
+          <label className={`ce-label${isCreate ? '' : ' ce-label--readonly'}`}>
+            Tipo {isCreate ? '' : '(solo lectura)'}
+          </label>
+          {isCreate ? (
+            <select className="ce-select" value={draft.type}
+              onChange={e => set('type', e.target.value)}>
+              {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          ) : (
+            <input className="ce-input ce-input--readonly" value={draft.type} readOnly />
+          )}
+        </div>
+
         {/* Regla positiva */}
-        <div className="ce-field ce-form__full">
+        <div className="ce-field">
           <label className="ce-label">Regla positiva *</label>
-          <select className="ce-select" value={draft.positive_rule} onChange={e => set('positive_rule', e.target.value)}>
+          <select className="ce-select" value={draft.positive_rule}
+            onChange={e => set('positive_rule', e.target.value)}>
             {POSITIVE_RULES.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </div>
 
-        {/* Target value + unit */}
+        {/* Target + unit */}
         <div className="ce-field">
           <label className="ce-label">Valor objetivo</label>
           <input className="ce-input" type="number" step="any" value={draft.target_value}
@@ -149,7 +226,8 @@ function HabitForm({ habit, config, onSaved, onCancel }) {
         </div>
         <div className="ce-field">
           <label className="ce-label">Unidad</label>
-          <input className="ce-input" value={draft.unit} onChange={e => set('unit', e.target.value)} placeholder="ej. horas" />
+          <input className="ce-input" value={draft.unit}
+            onChange={e => set('unit', e.target.value)} placeholder="ej. horas" />
         </div>
 
         {/* Score */}
@@ -178,14 +256,14 @@ function HabitForm({ habit, config, onSaved, onCancel }) {
         <div className="ce-field">
           <label className="ce-label">Estado</label>
           <div className="ce-checkbox-row">
-            <input type="checkbox" id={`active-${habit.habit_id}`} checked={draft.active}
-              onChange={e => set('active', e.target.checked)} />
-            <label htmlFor={`active-${habit.habit_id}`}>Activo</label>
+            <input type="checkbox" id={`active-${draft.habit_id || 'new'}`}
+              checked={draft.active} onChange={e => set('active', e.target.checked)} />
+            <label htmlFor={`active-${draft.habit_id || 'new'}`}>Activo</label>
           </div>
           <div className="ce-checkbox-row">
-            <input type="checkbox" id={`visible-${habit.habit_id}`} checked={draft.visible}
-              onChange={e => set('visible', e.target.checked)} />
-            <label htmlFor={`visible-${habit.habit_id}`}>Visible</label>
+            <input type="checkbox" id={`visible-${draft.habit_id || 'new'}`}
+              checked={draft.visible} onChange={e => set('visible', e.target.checked)} />
+            <label htmlFor={`visible-${draft.habit_id || 'new'}`}>Visible</label>
           </div>
         </div>
 
@@ -202,24 +280,18 @@ function HabitForm({ habit, config, onSaved, onCancel }) {
           Cancelar
         </button>
         <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar cambios'}
+          {saving ? 'Guardando…' : isCreate ? 'Crear hábito' : 'Guardar cambios'}
         </button>
       </div>
     </div>
   );
 }
 
-// ── Fila de hábito ───────────────────────────────────────────────────────────
+// ── Fila de hábito (edit) ─────────────────────────────────────────────────────
 
 function HabitRow({ habit, config, onSaved }) {
   const [editing, setEditing] = useState(false);
-
   const isActive = habit.active === 'true' || habit.active === true;
-
-  function handleSaved(updated) {
-    onSaved(updated);
-    setEditing(false);
-  }
 
   return (
     <div className="ce-item">
@@ -242,12 +314,12 @@ function HabitRow({ habit, config, onSaved }) {
           </div>
         </div>
       )}
-
       {editing && (
         <HabitForm
           habit={habit}
           config={config}
-          onSaved={handleSaved}
+          isCreate={false}
+          onSaved={saved => { onSaved(saved); setEditing(false); }}
           onCancel={() => setEditing(false)}
         />
       )}
@@ -255,52 +327,67 @@ function HabitRow({ habit, config, onSaved }) {
   );
 }
 
-// ── Componente principal ─────────────────────────────────────────────────────
+// ── Componente principal ──────────────────────────────────────────────────────
 
 export function HabitConfigEditor({ config, onConfigUpdated }) {
-  const groups = (config.habitGroups || [])
+  const [creating, setCreating] = useState(false);
+
+  const groups  = (config.habitGroups || [])
     .filter(g => g.active === 'true' || g.active === true)
     .sort((a, b) => Number(a.sort_order) - Number(b.sort_order));
+  const habits  = config.habits || [];
 
-  const habits = config.habits || [];
-
-  if (!groups.length) {
-    return (
-      <div className="ce-empty">
-        No hay grupos de hábitos configurados en Google Sheets.
-      </div>
-    );
-  }
-
-  function handleSaved(updatedHabit) {
-    // Actualiza el hábito en memoria para reflejar el cambio inmediatamente
-    const newHabits = habits.map(h =>
-      h.habit_id === updatedHabit.habit_id ? updatedHabit : h
-    );
+  function handleSaved(record, isNew = false) {
+    const newHabits = isNew
+      ? [...habits, record]
+      : habits.map(h => h.habit_id === record.habit_id ? record : h);
     onConfigUpdated({ ...config, habits: newHabits });
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+      {/* Botón crear */}
+      {!creating && (
+        <button type="button" className="btn btn-primary"
+          style={{ alignSelf: 'flex-start' }}
+          onClick={() => setCreating(true)}>
+          + Nuevo hábito
+        </button>
+      )}
+
+      {/* Formulario de creación */}
+      {creating && (
+        <div className="ce-group">
+          <div className="ce-group__header">Nuevo hábito</div>
+          <HabitForm
+            habit={{}}
+            config={config}
+            isCreate={true}
+            onSaved={record => { handleSaved(record, true); setCreating(false); }}
+            onCancel={() => setCreating(false)}
+          />
+        </div>
+      )}
+
+      {/* Lista agrupada */}
+      {!groups.length && (
+        <div className="ce-empty">No hay grupos de hábitos configurados en Google Sheets.</div>
+      )}
+
       {groups.map(group => {
         const groupHabits = habits
           .filter(h => h.group_id === group.group_id)
           .sort((a, b) => Number(a.sort_order) - Number(b.sort_order));
-
         if (!groupHabits.length) return null;
-
         return (
           <div key={group.group_id} className="ce-group">
             <div className="ce-group__header">
               {group.emoji ? group.emoji + ' ' : ''}{group.name}
             </div>
             {groupHabits.map(habit => (
-              <HabitRow
-                key={habit.habit_id}
-                habit={habit}
-                config={config}
-                onSaved={handleSaved}
-              />
+              <HabitRow key={habit.habit_id} habit={habit} config={config}
+                onSaved={record => handleSaved(record, false)} />
             ))}
           </div>
         );

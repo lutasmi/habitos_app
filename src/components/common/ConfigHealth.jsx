@@ -14,8 +14,10 @@ import '../../styles/config-health.css';
 import '../../styles/config-editor.css';
 import { SyncStatus }             from './SyncStatus.jsx';
 import { validateConfig, groupIssuesBySheet } from '../../domain/configValidation.js';
-import { HabitConfigEditor }      from '../system/HabitConfigEditor.jsx';
-import { ActivityConfigEditor }   from '../system/ActivityConfigEditor.jsx';
+import { HabitConfigEditor }        from '../system/HabitConfigEditor.jsx';
+import { ActivityConfigEditor }     from '../system/ActivityConfigEditor.jsx';
+import { HabitGroupConfigEditor }   from '../system/HabitGroupConfigEditor.jsx';
+import { ActivityGroupConfigEditor } from '../system/ActivityGroupConfigEditor.jsx';
 
 // ── Subcomponentes de Salud ───────────────────────────────────────────────────
 
@@ -134,18 +136,30 @@ export function ConfigHealth({
           <>
             {/* Tabs internas */}
             <div className="sys-tabs">
-              <button className={`sys-tab${tab === 'health'      ? ' sys-tab--active' : ''}`}
+              <button className={`sys-tab${tab === 'health'         ? ' sys-tab--active' : ''}`}
                 onClick={() => setTab('health')}>Salud</button>
-              <button className={`sys-tab${tab === 'habits'      ? ' sys-tab--active' : ''}`}
+              <button className={`sys-tab${tab === 'habit-groups'   ? ' sys-tab--active' : ''}`}
+                onClick={() => setTab('habit-groups')}>Grupos h.</button>
+              <button className={`sys-tab${tab === 'habits'         ? ' sys-tab--active' : ''}`}
                 onClick={() => setTab('habits')}>Hábitos</button>
-              <button className={`sys-tab${tab === 'activities'  ? ' sys-tab--active' : ''}`}
+              <button className={`sys-tab${tab === 'activity-groups'? ' sys-tab--active' : ''}`}
+                onClick={() => setTab('activity-groups')}>Grupos a.</button>
+              <button className={`sys-tab${tab === 'activities'     ? ' sys-tab--active' : ''}`}
                 onClick={() => setTab('activities')}>Actividades</button>
             </div>
 
             {tab === 'health' && <HealthTab config={config} />}
 
+            {tab === 'habit-groups' && (
+              <HabitGroupConfigEditor config={config} onConfigUpdated={onConfigUpdated} />
+            )}
+
             {tab === 'habits' && (
               <HabitConfigEditor config={config} onConfigUpdated={onConfigUpdated} />
+            )}
+
+            {tab === 'activity-groups' && (
+              <ActivityGroupConfigEditor config={config} onConfigUpdated={onConfigUpdated} />
             )}
 
             {tab === 'activities' && (
