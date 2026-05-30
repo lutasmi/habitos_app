@@ -4,7 +4,7 @@
  * Componente raíz que gestiona:
  * - Carga inicial de datos desde Sheets (config + records + activities)
  * - Estado compartido entre pantallas (config, logs, sync)
- * - Navegación entre Hábitos y Actividades
+ * - Navegación entre Hábitos, Actividades y Evolución
  *
  * TodayPage y ActivitiesPage reciben datos como props.
  * Ninguna de las dos páginas hace peticiones de red directamente
@@ -15,6 +15,8 @@ import { useState, useEffect, useCallback } from 'react';
 import '../../styles/activities.css';
 import { TodayPage }      from '../today/TodayPage.jsx';
 import { ActivitiesPage } from '../activities/ActivitiesPage.jsx';
+import { EvolutionPage }  from '../evolution/EvolutionPage.jsx';
+import '../../styles/evolution.css';
 import { BottomNav }      from '../common/BottomNav.jsx';
 import { loadOnOpen }     from '../../services/syncService.js';
 import { getLastSyncTime } from '../../services/localCache.js';
@@ -171,6 +173,18 @@ export function AppShell() {
           config={config}
           activityLog={activityLog}
           onActivityLogged={handleActivityLogged}
+          syncStatus={syncStatus}
+          syncMessage={syncMessage}
+          lastSync={lastSync}
+        />
+      )}
+
+      {activeTab === 'evolution' && (
+        <EvolutionPage
+          config={config}
+          allDailyRecords={allDailyRecords}
+          allHabitValues={allHabitValues}
+          activityLog={activityLog}
           syncStatus={syncStatus}
           syncMessage={syncMessage}
           lastSync={lastSync}

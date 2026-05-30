@@ -9,6 +9,7 @@ export function BottomNav({ activeTab, onTabChange }) {
   const tabs = [
     { id: 'habits',     label: 'Hábitos',     icon: '✓' },
     { id: 'activities', label: 'Actividades',  icon: '⚡' },
+    { id: 'evolution',  label: 'Evolución',    icon: '◼' },
   ];
 
   return (
