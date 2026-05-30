@@ -21,7 +21,7 @@ import '../../styles/evolution.css';
 import { BottomNav }      from '../common/BottomNav.jsx';
 import { ConfigHealth }   from '../common/ConfigHealth.jsx';
 import '../../styles/config-health.css';
-import { loadOnOpen }     from '../../services/syncService.js';
+import { loadOnOpen, forceSync } from '../../services/syncService.js';
 import { getLastSyncTime } from '../../services/localCache.js';
 
 export function AppShell() {
@@ -38,6 +38,8 @@ export function AppShell() {
   const [syncMessage, setSyncMessage] = useState('Conectando…');
   const [lastSync,    setLastSync]    = useState(getLastSyncTime());
   const [replacedWarning, setReplacedWarning] = useState(false);
+  const [isRefreshing,    setIsRefreshing]    = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // ── Procesar datos recibidos (caché o Sheets) ─────────────────────────────
 
@@ -161,13 +163,49 @@ export function AppShell() {
    * sin necesidad de recargar desde Sheets.
    * La próxima carga desde Sheets reemplazará esto (Sheets manda siempre).
    */
+  /**
+   * Refresca todos los datos desde Google Sheets (pull only).
+   * No envía nada. No modifica registros.
+   * Si hay cambios sin guardar en Hábitos, avisa y no refresca.
+   */
+  async function handleRefresh() {
+    if (hasUnsavedChanges) {
+      setSyncMessage('Hay cambios sin guardar. Guarda antes de refrescar.');
+      setSyncStatus('pending');
+      return;
+    }
+
+    setIsRefreshing(true);
+    setSyncStatus('checking');
+    setSyncMessage('Actualizando…');
+
+    const result = await forceSync();
+
+    if (result.ok) {
+      applyData(result.data);
+      setSyncStatus('ok');
+      setSyncMessage('Datos actualizados desde Google Sheets');
+      setLastSync(new Date().toISOString());
+      setReplacedWarning(true);
+      setTimeout(() => {
+        setReplacedWarning(false);
+        setSyncMessage('Sincronizado');
+      }, 3500);
+    } else {
+      setSyncStatus('error');
+      setSyncMessage(result.error || 'Error al conectar con Google Sheets');
+    }
+
+    setIsRefreshing(false);
+  }
+
   function handleConfigUpdated(updatedConfig) {
     setConfig(updatedConfig);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const syncProps = { syncStatus, syncMessage, lastSync, replacedWarning };
+  const syncProps = { syncStatus, syncMessage, lastSync, replacedWarning, onRefresh: handleRefresh, isRefreshing };
 
   return (
     <div className="app-shell">
@@ -177,6 +215,7 @@ export function AppShell() {
           allDailyRecords={allDailyRecords}
           allHabitValues={allHabitValues}
           onDailySaved={handleDailySaved}
+          onUnsavedChanges={setHasUnsavedChanges}
           {...syncProps}
         />
       )}

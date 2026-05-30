@@ -53,6 +53,7 @@ export function TodayPage({
   allDailyRecords,
   allHabitValues,
   onDailySaved,
+  onUnsavedChanges,
   syncStatus,
   syncMessage,
   lastSync,
@@ -74,6 +75,7 @@ export function TodayPage({
   useEffect(() => {
     applyDataForDate(date, allDailyRecords, allHabitValues);
     setHasUnsavedChanges(false);
+    onUnsavedChanges?.(false);
     setSaveError(null);
   }, [date, allDailyRecords, allHabitValues, applyDataForDate]);
 
@@ -85,6 +87,7 @@ export function TodayPage({
       habitValues: { ...prev.habitValues, [habitId]: { ...newHabitValue, date } },
     }));
     setHasUnsavedChanges(true);
+    onUnsavedChanges?.(true);
     setSaveError(null);
   }
 
@@ -137,6 +140,7 @@ export function TodayPage({
 
     if (result.ok) {
       setHasUnsavedChanges(false);
+      onUnsavedChanges?.(false);
       onDailySaved?.({
         date,
         dayTypeId:        dayState.dayTypeId,
