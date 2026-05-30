@@ -1,0 +1,95 @@
+/* ================================================================
+   theme.css — Dark theme
+   Importado DESPUÉS de global.css en main.jsx.
+   Solo sobreescribe tokens CSS. No añade estructura.
+   Todo componente que usa variables de global.css hereda
+   el dark theme sin tocar sus reglas de layout.
+   ================================================================ */
+
+:root {
+  /* ── Fondos ─────────────────────────────────────────────── */
+  --color-bg:       #111116;   /* fondo de página */
+  --color-surface:  #1c1c23;   /* tarjetas, paneles */
+  --color-surface2: #24242d;   /* superficie elevada dentro de tarjetas */
+
+  /* ── Bordes ─────────────────────────────────────────────── */
+  --color-border:   #2e2e3a;   /* bordes suaves */
+
+  /* ── Texto ──────────────────────────────────────────────── */
+  --color-text:       #ededf0; /* texto principal */
+  --color-text-muted: #7c7c8a; /* texto secundario, labels */
+
+  /* ── Acento ─────────────────────────────────────────────── */
+  --color-accent:       #7c72ff; /* índigo/violeta suave */
+  --color-accent-hover: #9d95ff;
+  --color-accent-dim:   rgba(124, 114, 255, 0.12); /* fondo de acento muy suave */
+
+  /* ── Semánticos ─────────────────────────────────────────── */
+  --color-success:      #34d399; /* emerald */
+  --color-success-dim:  rgba(52, 211, 153, 0.12);
+  --color-error:        #f87171; /* red */
+  --color-error-dim:    rgba(248, 113, 113, 0.12);
+  --color-warning:      #fb923c; /* orange */
+
+  /* ── Radios — más redondeados para look premium ─────────── */
+  --radius:    14px;
+  --radius-sm: 9px;
+  --radius-xs: 6px;
+
+  /* ── Sombras ────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-accent: 0 4px 20px rgba(124, 114, 255, 0.3);
+}
+
+/* ── Base dark: inputs, selects, textareas ─────────────────── */
+
+input[type="number"],
+input[type="text"],
+input[type="email"],
+textarea,
+select {
+  color-scheme: dark;
+}
+
+/* ── Botones base en dark ──────────────────────────────────── */
+
+.btn-secondary {
+  background: var(--color-surface2);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-surface);
+}
+
+/* ── Banners en dark ───────────────────────────────────────── */
+
+.banner--info {
+  background: rgba(124, 114, 255, 0.1);
+  color: var(--color-accent-hover);
+  border-bottom-color: var(--color-border);
+}
+
+.banner--error {
+  background: var(--color-error-dim);
+  color: var(--color-error);
+  border-bottom-color: var(--color-border);
+}
+
+/* ── Scroll global ─────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}

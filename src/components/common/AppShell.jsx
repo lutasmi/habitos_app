@@ -13,6 +13,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import '../../styles/activities.css';
+import '../../styles/habits-dark.css';
 import { TodayPage }      from '../today/TodayPage.jsx';
 import { ActivitiesPage } from '../activities/ActivitiesPage.jsx';
 import { EvolutionPage }  from '../evolution/EvolutionPage.jsx';
