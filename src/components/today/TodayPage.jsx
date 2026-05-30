@@ -58,6 +58,8 @@ export function TodayPage({
   syncMessage,
   lastSync,
   replacedWarning,
+  onRefresh,
+  isRefreshing,
 }) {
   const [date,     setDate]     = useState(getTodayDateKey());
   const [dayState, setDayState] = useState(emptyDayState());
@@ -170,7 +172,7 @@ export function TodayPage({
 
       <header className="app-header">
         <span className="app-header__title">Hábitos</span>
-        <SyncStatus status={syncStatus} message={syncMessage} lastSync={lastSync} />
+        <SyncStatus status={syncStatus} message={syncMessage} lastSync={lastSync} onRefresh={onRefresh} isRefreshing={isRefreshing} />
       </header>
 
       {replacedWarning && (

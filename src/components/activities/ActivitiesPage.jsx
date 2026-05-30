@@ -21,7 +21,7 @@ import { groupActivities } from '../../domain/activities.js';
 import { saveActivityToSheets } from '../../services/syncService.js';
 import { getTodayDateKey } from '../../domain/dates.js';
 
-export function ActivitiesPage({ config, activityLog, onActivityLogged, syncStatus, syncMessage, lastSync }) {
+export function ActivitiesPage({ config, activityLog, onActivityLogged, syncStatus, syncMessage, lastSync, onRefresh, isRefreshing }) {
   const [date,      setDate]      = useState(getTodayDateKey());
   const [isSaving,  setIsSaving]  = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -58,7 +58,7 @@ export function ActivitiesPage({ config, activityLog, onActivityLogged, syncStat
       {/* Cabecera */}
       <header className="app-header">
         <span className="app-header__title">Actividades</span>
-        <SyncStatus status={syncStatus} message={syncMessage} lastSync={lastSync} />
+        <SyncStatus status={syncStatus} message={syncMessage} lastSync={lastSync} onRefresh={onRefresh} isRefreshing={isRefreshing} />
       </header>
 
       {/* Error de guardado */}

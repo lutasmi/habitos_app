@@ -225,9 +225,7 @@ export function AppShell() {
           config={config}
           activityLog={activityLog}
           onActivityLogged={handleActivityLogged}
-          syncStatus={syncStatus}
-          syncMessage={syncMessage}
-          lastSync={lastSync}
+          {...syncProps}
         />
       )}
 
@@ -237,9 +235,7 @@ export function AppShell() {
           allDailyRecords={allDailyRecords}
           allHabitValues={allHabitValues}
           activityLog={activityLog}
-          syncStatus={syncStatus}
-          syncMessage={syncMessage}
-          lastSync={lastSync}
+          {...syncProps}
         />
       )}
 
@@ -247,9 +243,7 @@ export function AppShell() {
         <ConfigHealth
           config={config}
           onConfigUpdated={handleConfigUpdated}
-          syncStatus={syncStatus}
-          syncMessage={syncMessage}
-          lastSync={lastSync}
+          {...syncProps}
         />
       )}
 

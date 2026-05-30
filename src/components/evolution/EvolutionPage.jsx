@@ -461,6 +461,8 @@ export function EvolutionPage({
   syncStatus,
   syncMessage,
   lastSync,
+  onRefresh,
+  isRefreshing,
 }) {
   const [innerTab, setInnerTab] = useState('habits');
 
@@ -473,7 +475,7 @@ export function EvolutionPage({
     <div className="evolution-page">
       <header className="app-header">
         <span className="app-header__title">Evolución</span>
-        <SyncStatus status={syncStatus} message={syncMessage} lastSync={lastSync} />
+        <SyncStatus status={syncStatus} message={syncMessage} lastSync={lastSync} onRefresh={onRefresh} isRefreshing={isRefreshing} />
       </header>
 
       <main className="evolution-main">

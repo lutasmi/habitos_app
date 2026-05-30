@@ -118,6 +118,8 @@ export function ConfigHealth({
   syncStatus,
   syncMessage,
   lastSync,
+  onRefresh,
+  isRefreshing,
 }) {
   const [tab, setTab] = useState('health');
   const isLoading = config === null;
@@ -126,7 +128,7 @@ export function ConfigHealth({
     <div className="system-page">
       <header className="app-header">
         <span className="app-header__title">Sistema</span>
-        <SyncStatus status={syncStatus} message={syncMessage} lastSync={lastSync} />
+        <SyncStatus status={syncStatus} message={syncMessage} lastSync={lastSync} onRefresh={onRefresh} isRefreshing={isRefreshing} />
       </header>
 
       <main className="system-main">
