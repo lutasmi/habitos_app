@@ -18,6 +18,8 @@ import { ActivitiesPage } from '../activities/ActivitiesPage.jsx';
 import { EvolutionPage }  from '../evolution/EvolutionPage.jsx';
 import '../../styles/evolution.css';
 import { BottomNav }      from '../common/BottomNav.jsx';
+import { ConfigHealth }   from '../common/ConfigHealth.jsx';
+import '../../styles/config-health.css';
 import { loadOnOpen }     from '../../services/syncService.js';
 import { getLastSyncTime } from '../../services/localCache.js';
 
@@ -185,6 +187,15 @@ export function AppShell() {
           allDailyRecords={allDailyRecords}
           allHabitValues={allHabitValues}
           activityLog={activityLog}
+          syncStatus={syncStatus}
+          syncMessage={syncMessage}
+          lastSync={lastSync}
+        />
+      )}
+
+      {activeTab === 'system' && (
+        <ConfigHealth
+          config={config}
           syncStatus={syncStatus}
           syncMessage={syncMessage}
           lastSync={lastSync}
