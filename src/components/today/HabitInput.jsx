@@ -49,17 +49,18 @@ function BooleanInput({ habit, habitValue, onChange }) {
 
   return (
     <div className="habit-bool">
-      <button
-        className={`habit-bool-btn ${current === yesStatus ? (yesStatus === HABIT_STATUS.DONE ? 'habit-bool-btn--done' : 'habit-bool-btn--not-done') : ''}`}
-        onClick={() => toggle(true)}
-      >
-        {yesIsPositive ? '✓ Sí' : '✗ Sí'}
-      </button>
+      {/* No a la izquierda, Sí a la derecha */}
       <button
         className={`habit-bool-btn ${current === noStatus ? (noStatus === HABIT_STATUS.DONE ? 'habit-bool-btn--done' : 'habit-bool-btn--not-done') : ''}`}
         onClick={() => toggle(false)}
       >
         {yesIsPositive ? '✗ No' : '✓ No'}
+      </button>
+      <button
+        className={`habit-bool-btn ${current === yesStatus ? (yesStatus === HABIT_STATUS.DONE ? 'habit-bool-btn--done' : 'habit-bool-btn--not-done') : ''}`}
+        onClick={() => toggle(true)}
+      >
+        {yesIsPositive ? '✓ Sí' : '✗ Sí'}
       </button>
     </div>
   );
