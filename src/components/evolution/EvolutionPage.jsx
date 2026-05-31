@@ -276,7 +276,7 @@ function GlobalHeatmap({ allDailyRecords, scoreRules, weeks, monthLabels }) {
 
 // ── Sección 2: Hábitos por grupos ─────────────────────────────────────────────
 
-function HabitsSection({ config, allHabitValues, scoreRules, weeks, monthLabels }) {
+function HabitsSection({ config, allDailyRecords, allHabitValues, scoreRules, weeks, monthLabels }) {
   const groups = useMemo(() =>
     (config?.habitGroups || [])
       .filter(g => (g.active === 'true' || g.active === true) &&
@@ -307,7 +307,13 @@ function HabitsSection({ config, allHabitValues, scoreRules, weeks, monthLabels 
 
   return (
     <section className="evo-section">
-      <h2 className="evo-section__title">Hábitos</h2>
+      {/* Score total de hábitos — desde DAILY_RECORDS.score_day */}
+      <GlobalHeatmap
+        allDailyRecords={allDailyRecords}
+        scoreRules={scoreRules}
+        weeks={weeks}
+        monthLabels={monthLabels}
+      />
 
       {groups.map(group => {
         const groupHabits = allHabits
@@ -483,14 +489,6 @@ export function EvolutionPage({
           <div className="evolution-empty">Cargando datos…</div>
         ) : (
           <>
-            {/* Heatmap global — siempre visible */}
-            <GlobalHeatmap
-              allDailyRecords={allDailyRecords}
-              scoreRules={scoreRules}
-              weeks={weeks}
-              monthLabels={monthLabels}
-            />
-
             {/* Tabs internas */}
             <div className="evo-inner-tabs">
               <button
@@ -513,6 +511,7 @@ export function EvolutionPage({
             {innerTab === 'habits' && (
               <HabitsSection
                 config={config}
+                allDailyRecords={allDailyRecords}
                 allHabitValues={allHabitValues}
                 scoreRules={scoreRules}
                 weeks={weeks}
