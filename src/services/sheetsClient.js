@@ -1,33 +1,19 @@
 /**
  * sheetsClient.js
  *
- * Cliente HTTP para comunicarse con el Google Apps Script desplegado como Web App.
+ * Cliente HTTP para el Google Apps Script desplegado como Web App.
+ * Solo hace peticiones — sin estado, sin side effects.
  *
- * Todas las funciones devuelven la estructura:
- * { ok: boolean, data?: any, error?: string, serverUpdatedAt?: string }
- *
- * Este cliente NO gestiona el estado de la app. Solo hace peticiones.
+ * CORS: POST sin Content-Type header para evitar preflight OPTIONS.
  */
 
 import { defaultConfig } from '../config/defaultConfig.js';
 
-// ----------------------------------------------------------------
-// Configuración base
-// ----------------------------------------------------------------
-
 function getBaseUrl() {
-  const url = defaultConfig.appsScriptUrl;
-  if (!url) {
-    console.warn('[sheetsClient] VITE_APPS_SCRIPT_URL no está configurada.');
-  }
-  return url;
+  return defaultConfig.appsScriptUrl || '';
 }
 
 const DEFAULT_TIMEOUT_MS = defaultConfig.requestTimeoutMs || 15000;
-
-// ----------------------------------------------------------------
-// Petición base con timeout
-// ----------------------------------------------------------------
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -36,52 +22,31 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_M
   try {
     const res = await fetch(url, { ...options, signal: controller.signal });
     clearTimeout(timer);
-
-    const json = await res.json();
-    return json;
+    return await res.json();
   } catch (err) {
     clearTimeout(timer);
     if (err.name === 'AbortError') {
-      return { ok: false, error: 'Timeout: el servidor tardó demasiado en responder.' };
+      return { ok: false, error: 'Timeout: el servidor tardó demasiado.' };
     }
-    return { ok: false, error: err.message || 'Error de red desconocido.' };
+    return { ok: false, error: err.message || 'Error de red.' };
   }
 }
 
-// ----------------------------------------------------------------
-// GET requests
-// ----------------------------------------------------------------
+// ── GET ───────────────────────────────────────────────────────────────────────
 
-/**
- * Verifica que el Apps Script responde.
- * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
- */
 export async function ping() {
-  const url = `${getBaseUrl()}?action=ping`;
-  return fetchWithTimeout(url);
+  return fetchWithTimeout(`${getBaseUrl()}?action=ping`);
 }
 
-/**
- * Crea las hojas de Google Sheets si no existen.
- * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
- */
 export async function setupSheets() {
-  const url = `${getBaseUrl()}?action=setup`;
-  return fetchWithTimeout(url);
+  return fetchWithTimeout(`${getBaseUrl()}?action=setup`);
 }
 
-/**
- * Lee todos los datos: config + registros diarios + hábitos + actividades.
- * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
- */
 export async function readAll() {
-  const url = `${getBaseUrl()}?action=read_all`;
-  return fetchWithTimeout(url);
+  return fetchWithTimeout(`${getBaseUrl()}?action=read_all`);
 }
 
-// ----------------------------------------------------------------
-// POST requests
-// ----------------------------------------------------------------
+// ── POST ──────────────────────────────────────────────────────────────────────
 
 async function postAction(action, payload) {
   const url = getBaseUrl();
@@ -89,42 +54,16 @@ async function postAction(action, payload) {
     return { ok: false, error: 'URL del Apps Script no configurada. Revisa VITE_APPS_SCRIPT_URL.' };
   }
 
-  // SIN headers personalizados. Content-Type: application/json dispara un preflight
-  // OPTIONS que Google Apps Script no maneja, rompiendo CORS. Al omitir el header,
-  // el navegador trata la petición como "simple" y no envía preflight.
-  // El body sigue siendo JSON serializado; doPost lee e.postData.contents y parsea.
+  // SIN Content-Type header: evita preflight CORS en Apps Script.
+  // El body sigue siendo JSON; doPost lee e.postData.contents y parsea.
   return fetchWithTimeout(url, {
     method: 'POST',
     body: JSON.stringify({ action, payload }),
   });
 }
 
-/**
- * Guarda el registro diario completo (registro del día + valores de hábitos).
- *
- * @param {object} payload - { date, day_type_id, note, habitValues[], score_day, score_week, score_month }
- * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
- */
-export async function saveDaily(payload) {
-  return postAction('save_daily', payload);
-}
+export async function saveDaily(payload)    { return postAction('save_daily',    payload); }
+export async function saveActivity(payload) { return postAction('save_activity', payload); }
+export async function saveConfig(payload)   { return postAction('save_config',   payload); }
 
-/**
- * Guarda un registro de actividad.
- *
- * @param {object} payload - { date, activity_id, duration_min, distance_km, comment }
- * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
- */
-export async function saveActivity(payload) {
-  return postAction('save_activity', payload);
-}
-
-/**
- * Guarda configuración en una hoja específica.
- *
- * @param {object} payload - { sheetName, records[], primaryKey }
- * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
- */
-export async function saveConfig(payload) {
-  return postAction('save_config', payload);
-}
+export async function deleteActivityLog(payload) { return postAction('delete_activity_log', payload); }

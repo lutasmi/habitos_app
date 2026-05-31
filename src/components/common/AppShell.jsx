@@ -199,6 +199,10 @@ export function AppShell() {
     setIsRefreshing(false);
   }
 
+  function handleActivityDeleted(activityLogId) {
+    setActivityLog(prev => prev.filter(item => item.activity_log_id !== activityLogId));
+  }
+
   function handleConfigUpdated(updatedConfig) {
     setConfig(updatedConfig);
   }
@@ -225,6 +229,7 @@ export function AppShell() {
           config={config}
           activityLog={activityLog}
           onActivityLogged={handleActivityLogged}
+          onActivityDeleted={handleActivityDeleted}
           {...syncProps}
         />
       )}

@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { ActivityCard } from './ActivityCard.jsx';
 
-export function ActivityGroup({ group, logsAll, date, onSaveLog, isSaving }) {
+export function ActivityGroup({ group, logsAll, date, onSaveLog, onDeleteLog, isSaving }) {
   const [isOpen, setIsOpen] = useState(true);
   const activities = group.activities || [];
 
@@ -50,6 +50,7 @@ export function ActivityGroup({ group, logsAll, date, onSaveLog, isSaving }) {
               logsAll={logsAll}
               date={date}
               onSaveLog={onSaveLog}
+              onDeleteLog={onDeleteLog}
               isSaving={isSaving}
             />
           ))}

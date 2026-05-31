@@ -18,10 +18,10 @@ import { SyncStatus }      from '../common/SyncStatus.jsx';
 import { DateSelector }    from '../today/DateSelector.jsx';
 import { ActivityGroup }   from './ActivityGroup.jsx';
 import { groupActivities } from '../../domain/activities.js';
-import { saveActivityToSheets } from '../../services/syncService.js';
+import { saveActivityToSheets, deleteActivityFromSheets } from '../../services/syncService.js';
 import { getTodayDateKey } from '../../domain/dates.js';
 
-export function ActivitiesPage({ config, activityLog, onActivityLogged, syncStatus, syncMessage, lastSync, onRefresh, isRefreshing }) {
+export function ActivitiesPage({ config, activityLog, onActivityLogged, onActivityDeleted, syncStatus, syncMessage, lastSync, onRefresh, isRefreshing }) {
   const [date,      setDate]      = useState(getTodayDateKey());
   const [isSaving,  setIsSaving]  = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -50,6 +50,15 @@ export function ActivitiesPage({ config, activityLog, onActivityLogged, syncStat
     }
 
     setIsSaving(false);
+  }
+
+  async function handleDeleteLog(activityLogId) {
+    const result = await deleteActivityFromSheets(activityLogId);
+    if (result.ok) {
+      // Quitar de memoria inmediatamente
+      onActivityDeleted(activityLogId);
+    }
+    return result; // ActivityCard muestra el error si !ok
   }
 
   return (
@@ -94,6 +103,7 @@ export function ActivitiesPage({ config, activityLog, onActivityLogged, syncStat
             logsAll={activityLog}
             date={date}
             onSaveLog={handleSaveLog}
+            onDeleteLog={handleDeleteLog}
             isSaving={isSaving}
           />
         ))}

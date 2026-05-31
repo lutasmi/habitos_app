@@ -317,3 +317,78 @@
   border-color: var(--color-accent);
   color: var(--color-accent);
 }
+
+/* ---- Acciones de registro (Editar + Eliminar) ---- */
+
+.activity-log-entry__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Botón × eliminar — discreto, no más destacado que Editar */
+.activity-log-entry__delete-btn {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 6px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: border-color 0.1s, color 0.1s;
+}
+
+.activity-log-entry__delete-btn:hover {
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+
+/* Confirmación inline */
+.activity-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.activity-delete-confirm__text {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.activity-delete-confirm__yes {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-error-dim, rgba(248,113,113,0.12));
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.activity-delete-confirm__yes:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.activity-delete-confirm__no {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  background: none;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+/* Error de borrado */
+.activity-delete-error {
+  font-size: 12px;
+  color: var(--color-error);
+  padding: 4px 14px;
+}

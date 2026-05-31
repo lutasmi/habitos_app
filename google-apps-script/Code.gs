@@ -100,6 +100,10 @@ function doPost(e) {
         saveConfigPayload(payload);
         return jsonResponse({ ok: true, data: {}, message: 'Configuración guardada' });
 
+      case 'delete_activity_log':
+        deleteActivityLogPayload(payload);
+        return jsonResponse({ ok: true, data: {}, message: 'Registro de actividad eliminado' });
+
       default:
         return jsonResponse({ ok: false, error: `Acción POST desconocida: "${action}"` });
     }
@@ -608,6 +612,57 @@ function saveConfigPayload(payload) {
       new_value:      JSON.stringify(record),
       source:         'app',
     });
+  });
+}
+
+// ------------------------------------------------------------
+// BORRADO — ACTIVITY_LOG
+// ------------------------------------------------------------
+
+/**
+ * Elimina una fila concreta de ACTIVITY_LOG por activity_log_id.
+ *
+ * IMPORTANTE: No borra CONFIG_ACTIVITIES, CONFIG_ACTIVITY_GROUPS,
+ * DAILY_RECORDS ni DAILY_HABIT_VALUES. Solo opera sobre ACTIVITY_LOG.
+ *
+ * payload = { activity_log_id: string }
+ */
+function deleteActivityLogPayload(payload) {
+  if (!payload.activity_log_id) {
+    throw new Error('Falta activity_log_id en el payload de borrado.');
+  }
+
+  const sheet   = getSheet(SHEET_NAMES.ACTIVITY_LOG);
+  const headers = getHeaders(sheet);
+  const rows    = sheet.getDataRange().getValues();
+  const idCol   = headers.indexOf('activity_log_id');
+
+  let targetRow = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idCol]) === payload.activity_log_id) {
+      targetRow = i + 1; // 1-indexed para Sheets API
+      break;
+    }
+  }
+
+  if (targetRow === -1) {
+    throw new Error(`activity_log_id "${payload.activity_log_id}" no encontrado en ACTIVITY_LOG.`);
+  }
+
+  // Capturar la fila completa antes de borrarla para el CHANGE_LOG
+  const previousValue = rowToObject(rows[targetRow - 1], headers);
+
+  // Borrar la fila físicamente de ACTIVITY_LOG
+  sheet.deleteRow(targetRow);
+
+  // Registrar el borrado en CHANGE_LOG
+  appendChangeLog({
+    sheet_name:     SHEET_NAMES.ACTIVITY_LOG,
+    entity_id:      payload.activity_log_id,
+    action:         'delete',
+    previous_value: JSON.stringify(previousValue),
+    new_value:      JSON.stringify(null),
+    source:         'app',
   });
 }
 
